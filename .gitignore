@@ -1,1 +1,11 @@
 /ryukbot_backups
+
+*.vdm
+_events.txt
+
+/output
+/__pycache__
+
+debug.log
+
+technocrat.ico

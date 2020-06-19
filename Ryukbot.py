@@ -3,6 +3,7 @@
 from datetime import datetime as dt
 from pathlib import Path
 import re
+import json
 import sys
 import os
 import colorama
@@ -21,10 +22,58 @@ colorama.init()
 # cyan: Titles/System messages
 # white: Normal paragraph messages/descriptions of things
 
-#TODO: Welcome and thank you message (unimportant)
+def errorPrint(message):
+    cprint(message, 'red')
+    input('Press enter to close...')
+    exit()
+
+# Writes the start of a new command and adds one to the vdmCount variable
+def newCommand(vdmCount, VDM):
+    VDM.write('\t"%s"\n\t{\n\t\t' % (vdmCount))
+    return vdmCount + 1
+
+# Prints the body of the vdm for each clip to be recorded
+def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
+    # Starts the new command line
+    vdmCount = newCommand(vdmCount, VDM)
+    VDM.write('factory "SkipAhead"\n\t\tname "skip"\n\t\tstarttick "%s"\n\t\tskiptotick "%s"\n\t}\n'
+              % (lastTick, startTick - 100))
+    
+    vdmCount = newCommand(vdmCount, VDM)
+    
+    # sets the chatTime based on the settings
+    if ryukbot_settings["text_chat"] == 0:
+        chatTime = 0
+    else:
+        chatTime = 12
+        
+    # Creates the commands to later be written in the VDM file.
+    commands = ('%s hud_saytext_time %s; voice_enable %s; crosshair %s; cl_drawhud %s; host_framerate %s;' 
+                % (ryukbot_settings["commands"], chatTime,
+                   ryukbot_settings["voice_chat"], ryukbot_settings["crosshair"],
+                   ryukbot_settings["HUD"], ryukbot_settings["framerate"]))
+    
+    # Writes the bulk of the startmovie command
+    VDM.write('factory "PlayCommands"\n\t\tname "record_start"\n\t\tstarttick "%s"\n\t\tcommands "%s startmovie %s_%s-%s_%s %s; clear"\n\t}\n'
+              % (startTick, commands, demoName, startTick, endTick, suffix, ryukbot_settings["method"]))
+    
+    vdmCount = newCommand(vdmCount, VDM)
+    VDM.write('factory "PlayCommands"\n\t\tname "record_stop"\n\t\tstarttick "%s"\n\t\tcommands "endmovie;host_framerate 0"\n\t}\n'
+              % (endTick))
+    
+    return vdmCount + 1
 
 
-tickBuffer = 500
+def completeVDM(VDM, nextDemo, lastTick, vdmCount):
+    
+    if nextDemo == 'end' or ryukbot_settings["record_continuous"] == 0:
+        commands = 'quit'
+    else: 
+        commands = 'playdemo ' + nextDemo
+    vdmCount = newCommand(vdmCount, VDM)
+    VDM.write('factory "PlayCommands"\n\t\tname "VDM end"\n\t\tstarttick "%s"\n\t\tcommands "%s"\n\t}\n}'
+              % (lastTick, commands))
+
 
 # Prints the backups to the folders told to
 def writeBackup(backup_location, eventsPerDemo):
@@ -42,16 +91,16 @@ def writeBackup(backup_location, eventsPerDemo):
 # Returns the amount of ticks to put before the clip
 def ticksPrior(event):
     if event[1].lower() == 'killstreak':
-        return 250 * int(event[2])
+        return ryukbot_settings['before_killstreak_per_kill'] * int(event[2])
     else:
-        return 1000
+        return ryukbot_settings['before_bookmark']
       
 # Returns the amount of ticks to put after the clip      
 def ticksAfter(event):
     if event[1].lower() == 'killstreak':
-        return 500
+        return ryukbot_settings['after_killstreak']
     else:
-        return 500
+        return ryukbot_settings['after_bookmark']
     
 def killstreakCounter(event, currentCount):
     if event[1].lower() == 'killstreak':
@@ -61,135 +110,279 @@ def killstreakCounter(event, currentCount):
         else:
             # cprint('%s < %s' % (event[2], str(currentCount + 1)), 'red')
             return currentCount + int(event[2])
+    elif event[1].lower() == 'kill':
+        if int(event[2].split(':')[1]) >= int(currentCount + 1):
+            # cprint('%s >= %s' % (event[2], str(currentCount + 1)), 'green')
+            return int(event[2].split(':')[1])
+        else:
+            # cprint('%s < %s' % (event[2], str(currentCount + 1)), 'red')
+            return currentCount + int(event[2].split(':')[1])
     else:
         # cprint('%s != %s' % (event[1].lower(), 'killstreak'), 'red')
         return currentCount
+    
+def tapCounter(event, nextEvent, tapCount):
+    if event[1].lower() == 'bookmark':
+        if nextEvent[1].lower() == 'bookmark':
+            if int(event[4]) + ryukbot_settings['interval_for_rewind_double_taps'] >= int(nextEvent[4]):
+                tapCount += 1
+    return tapCount
                 
 # Read _events.txt or killstreaks.txt file 
-with open('_events.txt', 'r') as _events:
+def ryukbot(ryukbot_settings):
+    tf_folder = ryukbot_settings["tf_folder"]
+    if Path(tf_folder + '\\demos\\_events.txt').is_file():
+        tf_folder = tf_folder + '\\demos'
+        eventFileName = '_events.txt'
+        eventFile = Path(tf_folder + '\\_events.txt')
+    elif Path(tf_folder + '\\KillStreaks.txt').is_file():
+        eventFileName = 'KillStreaks.txt'
+        eventFile = Path(tf_folder + '\\KillStreaks.txt')
+    else:
+        errorPrint('Can not find KillStreaks.txt or _event.txt')
+    with open(eventFile, 'r') as _events:
 
-    # Saving the file as an array/list variable
-    eventLines = _events.readlines()
-    
-    # REGEX for future use
-    lineRegex = re.compile('\[(.*)\] (killstreak|bookmark) (.*) \("(.*)" at (\d*)\)', re.IGNORECASE)
-    carrotRegex = re.compile('\n(\>)?\n')
-    
-    # Combines it into one string and searches it
-    eventMarks = lineRegex.findall(''.join(eventLines))
-    
-    #* The syntax for getting the variables and its information
-    # LINE: eventMarks[*]           --- EXAMPLE ('2020/04/27 20:23', 'Killstreak', '3', '2020-04-27_20-16-21', '29017')
-    # DATE: eventMarks[*][0]        --- EXAMPLE 2020/04/27 20:23
-    # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-    # CRITERIA: eventMarks[*][2]    --- EXAMPLE 3
-    # DEMO: eventMarks[*][3]        --- EXAMPLE 2020-04-27_20-16-21
-    # TICK: eventMarks[*][4]        --- EXAMPLE 29017
-    
-    # Counts the amount of carrots splitting the demos
-    carrotCount = len(carrotRegex.findall(''.join(eventLines))) + 1
-    
-    # Simple message letting the user know the programs progress.
-    # More updates to the user are nice but I want to try and limit spam to the user.
-    cprint('Scanned ' + str(len(eventLines)) + ' different ticks over the span of ' + str(carrotCount) + ' demos.', 'green')
-    
-    #TODO: Loop through the eventMarks List and print out the ticks for each demo
-    
-    # This is used later to check if the demo has changed to the next on the list
-    demoName = eventMarks[0][3]
-    allEvents = []
-    eventsPerDemo = []
-    # Loops through the list of events in the eventMarks list
-    for event in eventMarks:
-        #! This doesnt add the last demo to the list
+        # Saving the file as an array/list variable
+        eventLines = _events.readlines()
         
-        # Checks if part of the same demo
-        if demoName != event[3]:
-            # Appends to the allEvents list for later use
-            allEvents.append(eventsPerDemo)
-            
-            # resets the demoName
-            demoName = event[3]
-            
-            # resets the events
-            eventsPerDemo = []
+        # REGEX for future use
+        lineRegex = re.compile('\[(.*)\] (kill|killstreak|bookmark) (.*) \("(.*)" at (\d*)\)', re.IGNORECASE)
+        carrotRegex = re.compile('\n(\>)?\n')
         
-        # Appends the current event to the end of the eventsPerDemo list
-        eventsPerDemo.append(event)
+        # Combines it into one string and searches it
+        eventMarks = lineRegex.findall(''.join(eventLines))
         
-    # Pushes the last demo to the allEvents list as the for loop above doesn't do it
-    allEvents.append(eventsPerDemo)
+        #* The syntax for getting the variables and its information
+        # LINE: eventMarks[*]           --- EXAMPLE ('2020/04/27 20:23', 'Killstreak', '3', '2020-04-27_20-16-21', '29017')
+        # DATE: eventMarks[*][0]        --- EXAMPLE 2020/04/27 20:23
+        # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
+        # CRITERIA: eventMarks[*][2]    --- EXAMPLE 3
+        # DEMO: eventMarks[*][3]        --- EXAMPLE 2020-04-27_20-16-21
+        # TICK: eventMarks[*][4]        --- EXAMPLE 29017
+        
+        # Counts the amount of carrots splitting the demos
+        carrotCount = len(carrotRegex.findall(''.join(eventLines))) + 1
+        
+                # This is used later to check if the demo has changed to the next on the list
+        try:
+            demoName = eventMarks[0][3]
+        except IndexError: 
+            errorPrint(eventFileName + ' is empty')
+        
+        # Simple message letting the user know the programs progress.
+        # More updates to the user are nice but I want to try and limit spam to the user.
+        cprint('Scanned ' + str(len(eventLines)) + ' different ticks over the span of ' + str(carrotCount) + ' demos.', 'green')
     
-    # Get current directory path and add the backups folder to the ned
-    dir_path = Path(str(os.path.dirname(os.path.realpath(__file__)) + '\\ryukbot_backups\\'))
-    
-    # Make the folder if it doesnt exist yet
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-        os.makedirs(Path((str(dir_path) + '\\demos\\')))
-    elif not os.path.exists(Path((str(dir_path) + '\\demos\\'))):
-        os.makedirs(Path((str(dir_path) + '\\demos\\')))
-        
-    # Saves the date time locally for naming purposes
-    date_time = str(dt.now().date()) + '_' + str(dt.now().time()) + '.txt'
-
-    demoIndex = 0
-    while demoIndex < len(allEvents):
-        demoEvents = allEvents[demoIndex]
-        demoName = demoEvents[0][3]
-        
-        # The location of the file we want to make
-        backupDemoLocation = Path((str(dir_path) + '\\demos\\' + demoName + '.txt'))
-        backupLocation = Path((str(dir_path) + '\\' + (date_time.replace(':', '-')).split('.')[0] + '.txt'))
-        
-        # Writes the backups to the files
-        writeBackup(backupDemoLocation, demoEvents)
-        writeBackup(backupLocation, demoEvents)
-
-        i = 0
-        clipCount = 0
-        bookmark = False
-        while i < len(demoEvents):
-            
-            event = demoEvents[i]
-            killstreakCount = killstreakCounter(event, 0)
-            
-            if event[1].lower() == 'bookmark':
-                bookmark = True
-            
-            startTick = int(event[4]) - ticksPrior(event)
-            endTick = int(event[4]) + ticksAfter(event)
-            
-            checkNext = True
-            while checkNext:
+        allEvents = []
+        eventsPerDemo = []
+        # Loops through the list of events in the eventMarks list
+        for event in eventMarks:
+            # Checks if part of the same demo
+            if demoName != event[3]:
+                # Appends to the allEvents list for later use
+                allEvents.append(eventsPerDemo)
                 
-                # Checks that its less than the length of the list
-                if i+1 < len(demoEvents):
-                    
-                    # Checks if endTick is before the start of the next clip
-                    if endTick >= ((int(demoEvents[i+1][4]) - ticksPrior(demoEvents[i+1])) - tickBuffer):
-                        killstreakCount =  killstreakCounter(demoEvents[i+1], killstreakCount)
-                        # Sets a new end tick
-                        endTick = int(demoEvents[i+1][4]) + ticksAfter(demoEvents[i+1])
-                        # Incriments i to show that line has been parsed already
-                        i += 1
-                    else:
-                        checkNext = False
-                else:
-                    checkNext = False
+                # resets the demoName
+                demoName = event[3]
+                
+                # resets the events
+                eventsPerDemo = []
             
-            clipCount += 1
-            suffix = ''
-            if killstreakCount == 0:
-                suffix = 'BM'
-            else: 
-                if bookmark:
-                    suffix = ('BM%s+' % (killstreakCount))
-                else:
-                    suffix = ('KS%s' % (killstreakCount))
-                    
-            cprint('Clip %s: %s_%s-%s_%s' % (clipCount, demoName, startTick, endTick, suffix), 'cyan')
-            i += 1
+            # Appends the current event to the end of the eventsPerDemo list
+            eventsPerDemo.append(event)
+            
+        # Pushes the last demo to the allEvents list as the for loop above doesn't do it
+        allEvents.append(eventsPerDemo)
         
-        cprint('Done printing demo: %s\nFound %s clip(s)' % (demoName, clipCount), 'green')
-        demoIndex += 1
+        # Get current directory path and add the backups folder to the end
+        dir_path = Path(tf_folder + '\\ryukbot_backups\\')
+        
+        # Make the folder if it doesnt exist yet
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+            os.makedirs(Path((str(dir_path) + '\\demos\\')))
+        elif not os.path.exists(Path((str(dir_path) + '\\demos\\'))):
+            os.makedirs(Path((str(dir_path) + '\\demos\\')))
+            
+        # Saves the date time locally for naming purposes
+        date_time = str(dt.now().date()) + '_' + str(dt.now().time()) + '.txt'
+
+        demoIndex = 0
+        while demoIndex < len(allEvents):
+            demoEvents = allEvents[demoIndex]
+            demoName = demoEvents[0][3]
+            
+            if (demoIndex + 1 < len(allEvents)):
+                nextDemo = allEvents[demoIndex + 1][0][3]
+            else:
+                nextDemo = 'end'
+            
+            if ryukbot_settings['console_detail'] > 2:
+                cprint('Scanning demo: %s' % (demoName), 'green')
+            
+            # The location of the file we want to make
+            backupDemoLocation = Path((str(dir_path) + '\\demos\\' + demoName + '.txt'))
+            backupLocation = Path((str(dir_path) + '\\' + (date_time.replace(':', '-')).split('.')[0] + '.txt'))
+            
+            # Writes the backups to the files
+            writeBackup(backupDemoLocation, demoEvents)
+            writeBackup(backupLocation, demoEvents)
+
+            i = 0
+            clipCount = 0
+            bookmark = False
+            vdmPath = Path(tf_folder + '\\' + demoName + '.vdm')
+            
+            demoTicks = []
+            with open(vdmPath, 'w+') as VDM:
+                lastTick = ryukbot_settings['start_delay']
+                
+                VDM.write('demoactions\n{\n')
+                
+                while i < len(demoEvents):
+                    
+                    event = demoEvents[i]
+                    killstreakCount = killstreakCounter(event, 0)
+                    
+                    if event[1].lower() == 'bookmark':
+                        bookmark = True
+                    
+                    startTick = int(event[4]) - ticksPrior(event)
+                    endTick = int(event[4]) + ticksAfter(event)
+                    
+                    checkNext = True
+                    tapCount = 0
+                    while checkNext:
+                        
+                        # Checks that its less than the length of the list
+                        if i+1 < len(demoEvents):
+                            # Confirms rewind double taps
+                            tapCount = tapCounter(event, demoEvents[i+1], tapCount)
+                            
+                            # Checks if endTick is before the start of the next clip
+                            if endTick >= ((int(demoEvents[i+1][4]) - ticksPrior(demoEvents[i+1])) - ryukbot_settings['minimum_ticks_between_clips']):
+                                killstreakCount =  killstreakCounter(demoEvents[i+1], killstreakCount)
+                                # Sets a new end tick
+                                endTick = int(demoEvents[i+1][4]) + ticksAfter(demoEvents[i+1])
+                                # Incriments i to show that line has been parsed already
+                                i += 1
+                            else:
+                                checkNext = False
+                        else:
+                            checkNext = False
+                    
+                    clipCount += 1
+                    suffix = ''
+                    if killstreakCount == 0:
+                        suffix = 'BM'
+                    else: 
+                        if bookmark:
+                            suffix = ('BM%s+' % (killstreakCount))
+                        else:
+                            suffix = ('KS%s' % (killstreakCount))
+                            
+                    startTick -= tapCount * ryukbot_settings['rewind_amount']
+                    
+                    demoTicks.append({
+                        "startTick": startTick,
+                        "endTick": endTick,
+                        "suffix": suffix
+                    })
+                    if ryukbot_settings['console_detail'] > 2:
+                        cprint('Clip %s: %s_%s-%s_%s' % (clipCount, demoName, startTick, endTick, suffix), 'cyan')
+                    i += 1
+                
+                vdmCount = 1
+                clip = 0
+                
+                if ryukbot_settings['console_detail'] > 3:
+                    cprint('Writing file: %s.vdm' % (demoName), 'green')
+                while clip < len(demoTicks):
+                    clipStart = demoTicks[clip]["startTick"]
+                    clipEnd = demoTicks[clip]["endTick"]
+                    suffix = demoTicks[clip]["suffix"]
+                    
+                    doubleCheck = True
+                    while doubleCheck:
+                        
+                        # Checks that its less than the length of the list
+                        if i+1 < len(demoTicks):
+                            # Checks if endTick is before the start of the next clip
+                            if clipEnd >= ((demoTicks[clip+1]["startTick"]) - ryukbot_settings['minimum_ticks_between_clips']):
+                                # Sets a new end tick
+                                clipEnd = int(demoTicks[clip+1]["endTick"])
+                                
+                                # Combines the suffixes to show it was multiple seperated clips combined
+                                suffix = suffix + '_' + demoTicks[clip+1]["suffix"]
+                                # Incriments i to show that line has been parsed already
+                                clip += 1
+                            else:
+                                doubleCheck = False
+                        else:
+                            doubleCheck = False
+                            
+                    vdmCount = printVDM(VDM, demoName, clipStart, clipEnd, suffix, lastTick, vdmCount)
+                    lastTick = clipEnd + 100
+                    clip += 1
+                    
+                completeVDM(VDM, nextDemo, lastTick, vdmCount)
+                
+                if ryukbot_settings['console_detail'] > 0:
+                    cprint('Done writing file: %s.vdm' % (demoName), 'green')
+                    if ryukbot_settings['console_detail'] > 1:
+                        cprint('Found %s clip(s)\n' % (clipCount), 'green')
+                    else: 
+                        print('\n')
+                demoIndex += 1
+            
+    cprint('Scanning ' + eventFileName + ' is complete', 'green')
+    cprint('Clearing ' + eventFileName, 'yellow')
+    open(eventFile, 'w+').close()
+    input("Press enter to close...")
+    exit()
+                
+if Path('ryukbot_settings.json').is_file():
+    ryukbot_settings = json.load(open('ryukbot_settings.json'))
+    if ryukbot_settings['welcome_message'] == 1:
+        cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
+        cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
+Developed by Ryuk
+Steam: https://steamcommunity.com/id/Ryuktf2/
+Patreon: https://www.patreon.com/ryuktf2
+Discord: Ryuk#1825\n\n""", attrs=["bold"])
+else: 
+    # If there is no settings file fill it with the default values
+    #TODO: Add in the settings maker/ryukbot installer
+    with open(Path('ryukbot_settings.json'), 'w') as ryukbot_settings:
+        json.dump({
+    "tf_folder": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\tf",
+    "commands": "",
+    "framerate": 60,
+    "crosshair": 0,
+    "HUD": 1,
+    "text_chat": 0,
+    "voice_chat": 0,
+    "method": "h264",
+    "start_delay": 500,
+    "before_bookmark": 1000,
+    "after_bookmark": 200,
+    "before_killstreak_per_kill": 500,
+    "after_killstreak": 300,
+    "minimum_ticks_between_clips": 500,
+    "interval_for_rewind_double_taps": 200,
+    "rewind_amount": 1000,
+    "record_continuous": 1,
+    "welcome_message": 1,
+    "console_detail": 3,
+    "clear_events": 1,
+    "mods": []
+}, ryukbot_settings, indent=4)
+    ryukbot_settings = json.load(open('ryukbot_settings.json'))
+    cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
+    cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
+Developed by Ryuk
+Steam: https://steamcommunity.com/id/Ryuktf2/
+Patreon: https://www.patreon.com/ryuktf2
+Discord: Ryuk#1825\n\n""", attrs=["bold"])
+        
+ryukbot(ryukbot_settings)

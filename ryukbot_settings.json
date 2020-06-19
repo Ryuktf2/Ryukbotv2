@@ -1,0 +1,23 @@
+{
+    "tf_folder": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\tf",
+    "commands": "",
+    "framerate": 60,
+    "crosshair": 0,
+    "HUD": 1,
+    "text_chat": 0,
+    "voice_chat": 0,
+    "method": "h264",
+    "start_delay": 500,
+    "before_bookmark": 1000,
+    "after_bookmark": 200,
+    "before_killstreak_per_kill": 500,
+    "after_killstreak": 300,
+    "minimum_ticks_between_clips": 500,
+    "interval_for_rewind_double_taps": 200,
+    "rewind_amount": 1000,
+    "record_continuous": 1,
+    "welcome_message": 1,
+    "console_detail": 4,
+    "clear_events": 1,
+    "mods": []
+}
