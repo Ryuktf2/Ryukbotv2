@@ -24,6 +24,8 @@ colorama.init()
 #TODO: Welcome and thank you message (unimportant)
 
 
+tickBuffer = 500
+
 # Prints the backups to the folders told to
 def writeBackup(backup_location, eventsPerDemo):
     
@@ -37,7 +39,32 @@ def writeBackup(backup_location, eventsPerDemo):
         for demoEvent in eventsPerDemo:
             backup_file.write('[%s] %s %s ("%s" at %s)\n' % (demoEvent))
             
-
+# Returns the amount of ticks to put before the clip
+def ticksPrior(event):
+    if event[1].lower() == 'killstreak':
+        return 250 * int(event[2])
+    else:
+        return 1000
+      
+# Returns the amount of ticks to put after the clip      
+def ticksAfter(event):
+    if event[1].lower() == 'killstreak':
+        return 500
+    else:
+        return 500
+    
+def killstreakCounter(event, currentCount):
+    if event[1].lower() == 'killstreak':
+        if int(event[2]) >= int(currentCount + 1):
+            # cprint('%s >= %s' % (event[2], str(currentCount + 1)), 'green')
+            return int(event[2])
+        else:
+            # cprint('%s < %s' % (event[2], str(currentCount + 1)), 'red')
+            return currentCount + int(event[2])
+    else:
+        # cprint('%s != %s' % (event[1].lower(), 'killstreak'), 'red')
+        return currentCount
+                
 # Read _events.txt or killstreaks.txt file 
 with open('_events.txt', 'r') as _events:
 
@@ -106,7 +133,9 @@ with open('_events.txt', 'r') as _events:
     # Saves the date time locally for naming purposes
     date_time = str(dt.now().date()) + '_' + str(dt.now().time()) + '.txt'
 
-    for demoEvents in allEvents:
+    demoIndex = 0
+    while demoIndex < len(allEvents):
+        demoEvents = allEvents[demoIndex]
         demoName = demoEvents[0][3]
         
         # The location of the file we want to make
@@ -116,3 +145,51 @@ with open('_events.txt', 'r') as _events:
         # Writes the backups to the files
         writeBackup(backupDemoLocation, demoEvents)
         writeBackup(backupLocation, demoEvents)
+
+        i = 0
+        clipCount = 0
+        bookmark = False
+        while i < len(demoEvents):
+            
+            event = demoEvents[i]
+            killstreakCount = killstreakCounter(event, 0)
+            
+            if event[1].lower() == 'bookmark':
+                bookmark = True
+            
+            startTick = int(event[4]) - ticksPrior(event)
+            endTick = int(event[4]) + ticksAfter(event)
+            
+            checkNext = True
+            while checkNext:
+                
+                # Checks that its less than the length of the list
+                if i+1 < len(demoEvents):
+                    
+                    # Checks if endTick is before the start of the next clip
+                    if endTick >= ((int(demoEvents[i+1][4]) - ticksPrior(demoEvents[i+1])) - tickBuffer):
+                        killstreakCount =  killstreakCounter(demoEvents[i+1], killstreakCount)
+                        # Sets a new end tick
+                        endTick = int(demoEvents[i+1][4]) + ticksAfter(demoEvents[i+1])
+                        # Incriments i to show that line has been parsed already
+                        i += 1
+                    else:
+                        checkNext = False
+                else:
+                    checkNext = False
+            
+            clipCount += 1
+            suffix = ''
+            if killstreakCount == 0:
+                suffix = 'BM'
+            else: 
+                if bookmark:
+                    suffix = ('BM%s+' % (killstreakCount))
+                else:
+                    suffix = ('KS%s' % (killstreakCount))
+                    
+            cprint('Clip %s: %s_%s-%s_%s' % (clipCount, demoName, startTick, endTick, suffix), 'cyan')
+            i += 1
+        
+        cprint('Done printing demo: %s\nFound %s clip(s)' % (demoName, clipCount), 'green')
+        demoIndex += 1
