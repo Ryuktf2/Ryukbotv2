@@ -22,10 +22,15 @@ colorama.init()
 # cyan: Titles/System messages
 # white: Normal paragraph messages/descriptions of things
 
-def errorPrint(message):
+def eprint(message, errorCode):
     cprint(message, 'red')
+    cprint('Error Code: %s' % (errorCode))
     input('Press enter to close...')
     os._exit(0)
+    
+def dprint(message, color, value):
+    if ryukbot_settings['console_detail'] > value:
+        cprint(message, color)
     
 def checkSetting(setting, type, ryukbot_settings):
     if setting in ryukbot_settings:
@@ -35,19 +40,19 @@ def checkSetting(setting, type, ryukbot_settings):
                     if ryukbot_settings[setting] == 1 or ryukbot_settings[setting] == 0:
                         return True
                     else:
-                        errorPrint(setting + ' is incorrectly set up (should be a 1 or 0)')
+                        eprint(setting + ' is incorrectly set up (should be a 1 or 0)', 204)
                 else: 
                     return True
                     
             else:
-                errorPrint(setting + ' is incorrectly set up (should be a number)')
+                eprint(setting + ' is incorrectly set up (should be a number)', 205)
         else: 
             if isinstance(ryukbot_settings[setting], str):
                 return True
             else:
-                errorPrint(setting + ' is incorrectly set up (should be wrapped in quotes)')
+                eprint(setting + ' is incorrectly set up (should be wrapped in quotes)', 203)
     else:
-        errorPrint(setting + ' is missing from ryukbot_settings.json')
+        eprint(setting + ' is missing from ryukbot_settings.json', 201)
         
 def settingRundown(ryukbot_settings):
     checkSetting("commands", 'string', ryukbot_settings)
@@ -77,11 +82,14 @@ def newCommand(vdmCount, VDM):
 # Prints the body of the vdm for each clip to be recorded
 def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
     # Starts the new command line
-    vdmCount = newCommand(vdmCount, VDM)
-    VDM.write('factory "SkipAhead"\n\t\tname "skip"\n\t\tstarttick "%s"\n\t\tskiptotick "%s"\n\t}\n'
-              % (lastTick, startTick - 100))
-    
-    vdmCount = newCommand(vdmCount, VDM)
+    try:
+        vdmCount = newCommand(vdmCount, VDM)
+        VDM.write('factory "SkipAhead"\n\t\tname "skip"\n\t\tstarttick "%s"\n\t\tskiptotick "%s"\n\t}\n'
+                % (lastTick, startTick - 100))
+        
+        vdmCount = newCommand(vdmCount, VDM)
+    except:
+        eprint('Error printing to %s.vdm' % demoName, 372)
     
     # sets the chatTime based on the settings
     if ryukbot_settings["text_chat"] == 0:
@@ -90,46 +98,56 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
         chatTime = 12
         
     # Creates the commands to later be written in the VDM file.
-    commands = ('%s hud_saytext_time %s; voice_enable %s; crosshair %s; cl_drawhud %s; host_framerate %s;' 
-                % (ryukbot_settings["commands"], chatTime,
-                   ryukbot_settings["voice_chat"], ryukbot_settings["crosshair"],
-                   ryukbot_settings["HUD"], ryukbot_settings["framerate"]))
+    try:
+        commands = ('%s; hud_saytext_time %s; voice_enable %s; crosshair %s; cl_drawhud %s; host_framerate %s;' 
+                    % (ryukbot_settings["commands"], chatTime,
+                    ryukbot_settings["voice_chat"], ryukbot_settings["crosshair"],
+                    ryukbot_settings["HUD"], ryukbot_settings["framerate"]))
+        
+        # Writes the bulk of the startmovie command
+        VDM.write('factory "PlayCommands"\n\t\tname "record_start"\n\t\tstarttick "%s"\n\t\tcommands "%s startmovie %s_%s-%s_%s %s; clear"\n\t}\n'
+                % (startTick, commands, demoName, startTick, endTick, suffix, ryukbot_settings["method"]))
+    except: 
+        eprint('Error printing to %s.vdm' % demoName, 373)
     
-    # Writes the bulk of the startmovie command
-    VDM.write('factory "PlayCommands"\n\t\tname "record_start"\n\t\tstarttick "%s"\n\t\tcommands "%s startmovie %s_%s-%s_%s %s; clear"\n\t}\n'
-              % (startTick, commands, demoName, startTick, endTick, suffix, ryukbot_settings["method"]))
-    
-    vdmCount = newCommand(vdmCount, VDM)
-    VDM.write('factory "PlayCommands"\n\t\tname "record_stop"\n\t\tstarttick "%s"\n\t\tcommands "endmovie;host_framerate 0"\n\t}\n'
-              % (endTick))
+    try:
+        vdmCount = newCommand(vdmCount, VDM)
+        VDM.write('factory "PlayCommands"\n\t\tname "record_stop"\n\t\tstarttick "%s"\n\t\tcommands "endmovie;host_framerate 0"\n\t}\n'
+                % (endTick))
+    except: 
+        eprint('Error printing to %s.vdm' % demoName, 374)
     
     return vdmCount + 1
 
 
-def completeVDM(VDM, nextDemo, lastTick, vdmCount):
-    
-    if nextDemo == 'end' or ryukbot_settings["record_continuous"] == 0:
-        commands = 'quit'
-    else: 
-        commands = 'playdemo ' + nextDemo
-    vdmCount = newCommand(vdmCount, VDM)
-    VDM.write('factory "PlayCommands"\n\t\tname "VDM end"\n\t\tstarttick "%s"\n\t\tcommands "%s"\n\t}\n}'
-              % (lastTick, commands))
+def completeVDM(VDM, nextDemo, lastTick, vdmCount, demoName):
+    try:
+        if nextDemo == 'end' or ryukbot_settings["record_continuous"] == 0:
+            commands = 'quit'
+        else: 
+            commands = 'playdemo ' + nextDemo
+        vdmCount = newCommand(vdmCount, VDM)
+        VDM.write('factory "PlayCommands"\n\t\tname "VDM end"\n\t\tstarttick "%s"\n\t\tcommands "%s"\n\t}\n}'
+                % (lastTick, commands))
+    except:
+        eprint('Error printing to %s.vdm' % demoName, 379)
 
 
 # Prints the backups to the folders told to
 def writeBackup(backup_location, eventsPerDemo):
-    
-    if backup_location.is_file():
-        writeMethod = 'a'
-    else: 
-        writeMethod = 'w'
-        
-    with open(backup_location, writeMethod) as backup_file:
-        backup_file.write('>\n')
-        for demoEvent in eventsPerDemo:
-            # Write the line to the backup
-            backup_file.write('[%s] %s %s ("%s" at %s)\n' % (demoEvent))
+    try: 
+        if backup_location.is_file():
+            writeMethod = 'a'
+        else: 
+            writeMethod = 'w'
+            
+        with open(backup_location, writeMethod) as backup_file:
+            backup_file.write('>\n')
+            for demoEvent in eventsPerDemo:
+                # Write the line to the backup
+                backup_file.write('[%s] %s %s ("%s" at %s)\n' % (demoEvent))
+    except:
+        eprint('Error while writing backup', 343)
             
 # Returns the amount of ticks to put before the clip
 def ticksPrior(event):
@@ -146,18 +164,21 @@ def ticksAfter(event):
         return ryukbot_settings['after_bookmark']
     
 def killstreakCounter(event, currentCount):
-    if event[1].lower() == 'killstreak':
-        if int(event[2]) >= int(currentCount + 1):
-            return int(event[2])
+    try:
+        if event[1].lower() == 'killstreak':
+            if int(event[2]) >= int(currentCount + 1):
+                return int(event[2])
+            else:
+                return currentCount + int(event[2])
+        elif event[1].lower() == 'kill':
+            if int(event[2].split(':')[1]) >= int(currentCount + 1):
+                return int(event[2].split(':')[1])
+            else:
+                return currentCount + int(event[2].split(':')[1])
         else:
-            return currentCount + int(event[2])
-    elif event[1].lower() == 'kill':
-        if int(event[2].split(':')[1]) >= int(currentCount + 1):
-            return int(event[2].split(':')[1])
-        else:
-            return currentCount + int(event[2].split(':')[1])
-    else:
-        return currentCount
+            return currentCount
+    except:
+        eprint('Error counting killstreak amount', 405)
     
 # Counts the amount of time bookmark is tapped
 def tapCounter(event, nextEvent, tapCount):
@@ -179,7 +200,7 @@ def ryukbot(ryukbot_settings):
             eventFileName = 'KillStreaks.txt'
             eventFile = Path(tf_folder + '\\KillStreaks.txt')
         else:
-            errorPrint('Can not find KillStreaks.txt or _event.txt')
+            eprint('Can not find KillStreaks.txt or _event.txt', 331)
         with open(eventFile, 'r') as _events:
 
             # Saving the file as an array/list variable
@@ -211,7 +232,7 @@ def ryukbot(ryukbot_settings):
             try:
                 demoName = eventMarks[0][3]
             except IndexError: 
-                errorPrint(eventFileName + ' is empty')
+                eprint(eventFileName + ' is empty', 332)
             
             # Simple message letting the user know the programs progress.
             # More updates to the user are nice but I want to try and limit spam to the user.
@@ -261,8 +282,7 @@ def ryukbot(ryukbot_settings):
                 else:
                     nextDemo = 'end'
                 
-                if ryukbot_settings['console_detail'] > 2:
-                    cprint('Scanning demo: %s' % (demoName), 'green')
+                dprint('\nScanning demo: %s' % (demoName), 'green', 2)
                 
                 # The location of the file we want to make
                 backupDemoLocation = Path((str(dir_path) + '\\demos\\' + demoName + '.txt'))
@@ -332,15 +352,15 @@ def ryukbot(ryukbot_settings):
                             "endTick": endTick,
                             "suffix": suffix
                         })
-                        if ryukbot_settings['console_detail'] > 2:
-                            cprint('Clip %s: %s_%s-%s_%s' % (clipCount, demoName, startTick, endTick, suffix), 'cyan')
+                        
+                        dprint('Clip %s: %s_%s-%s_%s' % (clipCount, demoName, startTick, endTick, suffix), 'cyan', 2)
                         i += 1
                     
                     vdmCount = 1
                     clip = 0
                     
-                    if ryukbot_settings['console_detail'] > 3:
-                        cprint('Writing file: %s.vdm' % (demoName), 'green')
+                    dprint('Writing file: %s.vdm' % (demoName), 'green', 3)
+                    
                     while clip < len(demoTicks):
                         
                         # Sets original tick counts 
@@ -371,31 +391,31 @@ def ryukbot(ryukbot_settings):
                         lastTick = clipEnd + 100
                         clip += 1
                         
-                    completeVDM(VDM, nextDemo, lastTick, vdmCount)
+                    completeVDM(VDM, nextDemo, lastTick, vdmCount, demoName)
                     
-                    if ryukbot_settings['console_detail'] > 0:
-                        cprint('Done writing file: %s.vdm' % (demoName), 'green')
-                        if ryukbot_settings['console_detail'] > 1:
-                            cprint('Found %s clip(s)\n' % (clipCount), 'green')
-                        else:
-                            print('\n')
+                    dprint('Done writing file: %s.vdm' % (demoName), 'green', 0)
+                    dprint('Found %s clip(s)' % (clipCount), 'green', 1)
                             
                     demoIndex += 1
 
-        cprint('Scanning ' + eventFileName + ' is complete', 'green')
+        cprint('\nScanning ' + eventFileName + ' is complete', 'green')
         cprint('Clearing ' + eventFileName, 'yellow')
-        open(eventFile, 'w+').close()
+        try:
+            open(eventFile, 'w+').close()
+            cprint(eventFileName + ' cleared')
+        except:
+            eprint('Error while clearing %s' % eventFileName, 398)
         input("Press enter to close...")
         os._exit(0)
     except:
-        errorPrint('An Unexpected error occurred while running Ryukbot')
+        eprint('An Unexpected error occurred while running Ryukbot', 101)
                 
 if Path('ryukbot_settings.json').is_file():
     # Ensure that ryukbot_settings.json is set correctly
     try:
         ryukbot_settings = json.load(open('ryukbot_settings.json'))
     except:
-        errorPrint('Error loading ryukbot_settings.json')
+        eprint('Error loading ryukbot_settings.json', 195)
     if ryukbot_settings['welcome_message'] == 1:
         cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
         cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
