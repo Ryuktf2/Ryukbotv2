@@ -14,25 +14,48 @@ colorama.init()
 
 # Color Coding ruleset:
 # grey: 
-# red: Errors and the messages associated
-# green: Ran successfully
-# yellow: Warning labels or important notices
+# red:      Errors and the messages associated
+# green:    Ran successfully
+# yellow:   Warning labels or important notices
 # blue: 
 # magenta: 
-# cyan: Titles/System messages
-# white: Normal paragraph messages/descriptions of things
+# cyan:     Titles/System messages
+# white:    Normal paragraph messages/descriptions of things
 
 def eprint(message, errorCode):
+    """Prints out and error message and code then closes the program when the user hits enter
+
+    Args:
+        message (string):   The error message the user sees
+        errorCode (int):    The error code used by the support team to pin down the issue
+    """ 
     cprint(message, 'red')
-    cprint('Error Code: %s' % (errorCode))
+    cprint(f'Error Code: {errorCode}', 'red')
     input('Press enter to close...')
     os._exit(0)
     
 def dprint(message, color, value):
+    """Prints a message to the console based on the console detail setting in ryukbot_settings.json
+
+    Args:
+        message (string):   The message to show
+        color (string):     The color of the message on the page
+        value (int):        The console detail level the setting must be above to show
+    """
     if ryukbot_settings['console_detail'] > value:
         cprint(message, color)
     
 def checkSetting(setting, type, ryukbot_settings):
+    """Checks the settings file and makes sure its all valid
+
+    Args:
+        setting (string):           The key name of the specific setting being checked
+        type (string):              The type of input setting it is
+        ryukbot_settings (json):    The settings themselves
+
+    Returns:
+        Boolean: True if correct but simply exits out of the program with eprint if it is wrong
+    """
     if setting in ryukbot_settings:
         if type == 'digit' or type == 'boolean':
             if str(ryukbot_settings[setting]).isdigit():
@@ -40,21 +63,26 @@ def checkSetting(setting, type, ryukbot_settings):
                     if ryukbot_settings[setting] == 1 or ryukbot_settings[setting] == 0:
                         return True
                     else:
-                        eprint(setting + ' is incorrectly set up (should be a 1 or 0)', 204)
+                        eprint(f'{setting} is incorrectly set up (should be a 1 or 0)', 204)
                 else: 
                     return True
                     
             else:
-                eprint(setting + ' is incorrectly set up (should be a number)', 205)
+                eprint(f'{setting} is incorrectly set up (should be a number)', 205)
         else: 
             if isinstance(ryukbot_settings[setting], str):
                 return True
             else:
-                eprint(setting + ' is incorrectly set up (should be wrapped in quotes)', 203)
+                eprint(f'{setting} is incorrectly set up (should be wrapped in quotes)', 203)
     else:
-        eprint(setting + ' is missing from ryukbot_settings.json', 201)
+        eprint(f'{setting} is missing from ryukbot_settings.json', 201)
         
 def settingRundown(ryukbot_settings):
+    """Runs all of the settings in one place
+
+    Args:
+        ryukbot_settings (json):    The settings to check
+    """
     checkSetting("commands", 'string', ryukbot_settings)
     checkSetting("framerate", 'digit', ryukbot_settings)
     checkSetting("crosshair", 'boolean', ryukbot_settings)
@@ -76,11 +104,37 @@ def settingRundown(ryukbot_settings):
         
 # Writes the start of a new command and adds one to the vdmCount variable
 def newCommand(vdmCount, VDM):
+    """Starts the initial command writing that is the same with all vdm commands
+
+    Args:
+        vdmCount (int):     The amount of vdm commands there are
+        VDM (file):         The VDM file being written to
+
+    Returns:
+        int: The count with one more to account for the one just added
+    """
     VDM.write('\t"%s"\n\t{\n\t\t' % (vdmCount))
     return vdmCount + 1
 
 # Prints the body of the vdm for each clip to be recorded
 def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
+    """Prints the body of the vdm for each clip to be recorded
+
+    Args:
+        VDM (file):         The file being written to
+        demoName (string):  The name of the demo file minus the extension
+        startTick (int):    The tick the recording itself starts at
+        endTick (int):      The tick the recording ends at
+        suffix (string):    A string to add to the end of the clips filename
+        lastTick (int):     The previous endTick
+        vdmCount (int):     A count of how many vdm commands have been written
+
+    Returns:
+        int:    It returns the vdmCount at the end of the function so everything
+                remains  consistent in that area throughout the entire 
+                vdm printing process.
+    """
+    
     # Starts the new command line
     try:
         vdmCount = newCommand(vdmCount, VDM)
@@ -89,7 +143,7 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
         
         vdmCount = newCommand(vdmCount, VDM)
     except:
-        eprint('Error printing to %s.vdm' % demoName, 372)
+        eprint(f'Error printing to {demoName}.vdm', 372)
     
     # sets the chatTime based on the settings
     if ryukbot_settings["text_chat"] == 0:
@@ -108,33 +162,48 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
         VDM.write('factory "PlayCommands"\n\t\tname "record_start"\n\t\tstarttick "%s"\n\t\tcommands "%s startmovie %s_%s-%s_%s %s; clear"\n\t}\n'
                 % (startTick, commands, demoName, startTick, endTick, suffix, ryukbot_settings["method"]))
     except: 
-        eprint('Error printing to %s.vdm' % demoName, 373)
+        eprint(f'Error printing to {demoName}.vdm', 373)
     
     try:
         vdmCount = newCommand(vdmCount, VDM)
         VDM.write('factory "PlayCommands"\n\t\tname "record_stop"\n\t\tstarttick "%s"\n\t\tcommands "endmovie;host_framerate 0"\n\t}\n'
                 % (endTick))
     except: 
-        eprint('Error printing to %s.vdm' % demoName, 374)
+        eprint(f'Error printing to {demoName}.vdm', 374)
     
     return vdmCount + 1
 
 
 def completeVDM(VDM, nextDemo, lastTick, vdmCount, demoName):
+    """Ends the VDM file and optionally leads to the next demo if possible or toggled.
+
+    Args:
+        VDM (file):             The VDM to be written to
+        nextDemo (string):      The name of the demo that happens after the current one.
+        lastTick (int):         The last tick used by the VDM in the printing process
+        vdmCount (int):         The count of vdm commands so far in the vdm
+        demoName (string):      The name of the current demo
+    """
     try:
         if nextDemo == 'end' or ryukbot_settings["record_continuous"] == 0:
             commands = 'quit'
         else: 
-            commands = 'playdemo ' + nextDemo
+            commands = f'playdemo {nextDemo}'
         vdmCount = newCommand(vdmCount, VDM)
         VDM.write('factory "PlayCommands"\n\t\tname "VDM end"\n\t\tstarttick "%s"\n\t\tcommands "%s"\n\t}\n}'
                 % (lastTick, commands))
     except:
-        eprint('Error printing to %s.vdm' % demoName, 379)
+        eprint(f'Error printing to {demoName}.vdm', 379)
 
 
 # Prints the backups to the folders told to
 def writeBackup(backup_location, eventsPerDemo):
+    """Prints the backups to the folders its told to
+
+    Args:
+        backup_location (Path):         The path to the backup .txt file
+        eventsPerDemo (Array/List):     The list of events in each demo
+    """
     try: 
         if backup_location.is_file():
             writeMethod = 'a'
@@ -151,6 +220,14 @@ def writeBackup(backup_location, eventsPerDemo):
             
 # Returns the amount of ticks to put before the clip
 def ticksPrior(event):
+    """Finds the amount of ticks to put before the clip being analysed
+
+    Args:
+        event (Array/List):     A list returned from REGEX showing all the pieces of the event being parsed
+
+    Returns:
+        int: The amount of ticks to put before the current clip
+    """
     if event[1].lower() == 'killstreak':
         return ryukbot_settings['before_killstreak_per_kill'] * int(event[2])
     else:
@@ -158,12 +235,29 @@ def ticksPrior(event):
       
 # Returns the amount of ticks to put after the clip      
 def ticksAfter(event):
+    """Finds the amount of ticks to put after the clip being analysed
+
+    Args:
+        event (Array/List):     A list returned from REGEX showing all the pieces of the event being parsed
+
+    Returns:
+        int: The amount of ticks to put after the current clip
+    """
     if event[1].lower() == 'killstreak':
         return ryukbot_settings['after_killstreak']
     else:
         return ryukbot_settings['after_bookmark']
     
 def killstreakCounter(event, currentCount):
+    """Counts the amount of kills in each killstreak
+
+    Args:
+        event (Array/List): A list returned from REGEX showing all the pieces of the event being parsed
+        currentCount (int): The amount of kills in the killstreak already
+
+    Returns:
+        int: The amount of kills in the killstreak
+    """
     try:
         if event[1].lower() == 'killstreak':
             if int(event[2]) >= int(currentCount + 1):
@@ -182,6 +276,16 @@ def killstreakCounter(event, currentCount):
     
 # Counts the amount of time bookmark is tapped
 def tapCounter(event, nextEvent, tapCount):
+    """Counts the amount of time bookmark is "tapped"
+
+    Args:
+        event (Array/List): A list returned from REGEX showing all the pieces of the event being parsed
+        nextEvent (Array/List): The event after the current one
+        tapCount (int): The amount of taps already
+
+    Returns:
+        int: The amount of times the bookmark button has been hit
+    """
     if event[1].lower() == 'bookmark':
         if nextEvent[1].lower() == 'bookmark':
             if int(event[4]) + ryukbot_settings['interval_for_rewind_double_taps'] >= int(nextEvent[4]):
@@ -190,6 +294,11 @@ def tapCounter(event, nextEvent, tapCount):
         
 # Read _events.txt or killstreaks.txt file 
 def ryukbot(ryukbot_settings):
+    """The base of the entire program
+
+    Args:
+        ryukbot_settings (json): The settings from the settings.json file
+    """
     try:
         tf_folder = ryukbot_settings["tf_folder"]
         if Path(tf_folder + '\\demos\\_events.txt').is_file():
@@ -217,9 +326,9 @@ def ryukbot(ryukbot_settings):
             # LINE: eventMarks[*]           --- EXAMPLE ('2020/04/27 20:23', 'Killstreak', '3', '2020-04-27_20-16-21', '29017')
             # DATE: eventMarks[*][0]        --- EXAMPLE 2020/04/27 20:23
             # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-        # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
             # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-        # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
+            # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
+            # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
             # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
             # CRITERIA: eventMarks[*][2]    --- EXAMPLE 3
             # DEMO: eventMarks[*][3]        --- EXAMPLE 2020-04-27_20-16-21
@@ -228,15 +337,15 @@ def ryukbot(ryukbot_settings):
             # Counts the amount of carrots splitting the demos
             carrotCount = len(carrotRegex.findall(''.join(eventLines))) + 1
             
-                    # This is used later to check if the demo has changed to the next on the list
+            # This is used later to check if the demo has changed to the next on the list
             try:
                 demoName = eventMarks[0][3]
-            except IndexError: 
-                eprint(eventFileName + ' is empty', 332)
+            except IndexError:
+                eprint((f"{eventFileName} is empty"), 332)
             
             # Simple message letting the user know the programs progress.
             # More updates to the user are nice but I want to try and limit spam to the user.
-            cprint('Scanned ' + str(len(eventLines)) + ' different ticks over the span of ' + str(carrotCount) + ' demos.', 'green')
+            cprint(f'Scanned {len(eventLines)} different ticks over the span of {carrotCount} demos.', 'green')
         
             allEvents = []
             eventsPerDemo = []
@@ -282,7 +391,7 @@ def ryukbot(ryukbot_settings):
                 else:
                     nextDemo = 'end'
                 
-                dprint('\nScanning demo: %s' % (demoName), 'green', 2)
+                dprint(f'\nScanning demo: {demoName}', 'green', 2)
                 
                 # The location of the file we want to make
                 backupDemoLocation = Path((str(dir_path) + '\\demos\\' + demoName + '.txt'))
@@ -353,13 +462,13 @@ def ryukbot(ryukbot_settings):
                             "suffix": suffix
                         })
                         
-                        dprint('Clip %s: %s_%s-%s_%s' % (clipCount, demoName, startTick, endTick, suffix), 'cyan', 2)
+                        dprint(f'Clip {clipCount}: {demoName}_{startTick}-{endTick}_{suffix}', 'cyan', 2)
                         i += 1
                     
                     vdmCount = 1
                     clip = 0
                     
-                    dprint('Writing file: %s.vdm' % (demoName), 'green', 3)
+                    dprint(f'Writing file: {demoName}.vdm', 'green', 3)
                     
                     while clip < len(demoTicks):
                         
@@ -393,18 +502,18 @@ def ryukbot(ryukbot_settings):
                         
                     completeVDM(VDM, nextDemo, lastTick, vdmCount, demoName)
                     
-                    dprint('Done writing file: %s.vdm' % (demoName), 'green', 0)
-                    dprint('Found %s clip(s)' % (clipCount), 'green', 1)
+                    dprint(f'Done writing file: {demoName}.vdm', 'green', 0)
+                    dprint(f'Found {clipCount} clip(s)', 'green', 1)
                             
                     demoIndex += 1
 
-        cprint('\nScanning ' + eventFileName + ' is complete', 'green')
-        cprint('Clearing ' + eventFileName, 'yellow')
+        cprint(f'\nScanning {eventFileName} is complete', 'green')
+        cprint(f'Clearing {eventFileName}', 'yellow')
         try:
             open(eventFile, 'w+').close()
-            cprint(eventFileName + ' cleared')
+            cprint(f'{eventFileName} cleared')
         except:
-            eprint('Error while clearing %s' % eventFileName, 398)
+            eprint(f'Error while clearing {eventFileName}', 398)
         input("Press enter to close...")
         os._exit(0)
     except:
