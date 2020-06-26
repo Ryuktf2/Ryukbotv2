@@ -17,10 +17,113 @@ colorama.init()
 # red:      Errors and the messages associated
 # green:    Ran successfully
 # yellow:   Warning labels or important notices
-# blue: 
-# magenta: 
+# blue:     
+# magenta:  
 # cyan:     Titles/System messages
 # white:    Normal paragraph messages/descriptions of things
+
+setting_descriptions = {
+    "tf_folder": {
+        "description": '/tf folder location',
+        "default": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\tf",
+        "type": "string"
+    },
+    "framerate": {
+        "description": 'The framerate you would like to record at\n(Stick to standard framerates: 30, 60, 120, 240)',
+        "default": 60,
+        "type": "integer"
+    },
+    "crosshair": {
+        "description": 'If you would like to enable or disable the crosshair\n1 for enable or 0 for disable',
+        "default": 0,
+        "type": "integer"
+    },
+    "HUD": {
+        "description": 'If you would like to enable or disable the HUD\n1 for enable or 0 for disable',
+        "default": 1,
+        "type": "integer"
+    },
+    "text_chat": {
+        "description": 'If you would like to enable or disable the text chat\n1 for enable or 0 for disable',
+        "default": 0,
+        "type": "integer"
+    },
+    "voice_chat": {
+        "description": 'If you would like to enable or disable the voice chat\n1 for enable or 0 for disable',
+        "default": 0,
+        "type": "integer"
+    },
+    "commands": {
+        "description": 'Any additional commands to run before a clips starts to record',
+        "default": "",
+        "type": "string"
+    },
+    "method": {
+        "description": 'The method of recording that ryukbot will take to record\nh264 uses quicktime to directly get mp4\nLeaving it blank will use tga recording like Lawena by default',
+        "default": "h264",
+        "type": "string"
+    },
+    "start_delay": {
+        "description": 'The delay at the start of a demo before it starts skipping to the first clip\nCan be helpful to prevent crashes',
+        "default": 250,
+        "type": "integer"
+    },
+    "before_bookmark": {
+        "description": 'The ticks to record before each bookmark\n1500 ticks is about 10 seconds',
+        "default": 1000,
+        "type": "integer"
+    },
+    "after_bookmark": {
+        "description": 'The ticks to record after each bookmark\n1500 ticks is about 10 seconds',
+        "default": 200,
+        "type": "integer"
+    },
+    "before_killstreak_per_kill": {
+        "description": 'The ticks to record per kill in the killstreak\nThis should be equal or a little larger than the time allowed between kills in your game or prec settings\n1500 ticks is about 10 seconds',
+        "default": 500,
+        "type": "integer"
+    },
+    "after_killstreak": {
+        "description": 'The ticks to record after each killstreak\n1500 ticks is about 10 seconds',
+        "default": 300,
+        "type": "integer"
+    },
+    "minimum_ticks_between_clips": {
+        "description": 'The amount of ticks between the end of one clip and the start of the next before ryukbot just combines them\n1500 ticks is about 10 seconds',
+        "default": 500,
+        "type": "integer"
+    },
+    "interval_for_rewind_double_taps": {
+        "description": 'How long between each tap of the button is allowed for it to be counted a double tap\nKeep this number low to prevent accidental double (or more) taps\n1500 ticks is about 10 seconds',
+        "default": 200,
+        "type": "integer"
+    },
+    "rewind_amount": {
+        "description": 'The amount of ticks to rewind when a double tap happens\n1500 ticks is about 10 seconds',
+        "default": 1000,
+        "type": "integer"
+    },
+    "record_continuous": {
+        "description": 'Automatically start recording the next demo when the current one is done\nIf disabled it will close tf2 when complete\n1 for enable or 0 for disable',
+        "default": 1,
+        "type": "integer"
+    },
+    "welcome_message": {
+        "description": 'Enable or disable the welcome message at the start of the program\n1 for enable or 0 for disable',
+        "default": 1,
+        "type": "integer"
+    },
+    "console_detail": {
+        "description": 'The amount of detail to show in the console as the program is running\n0 for none up to 4 to show everything',
+        "default": 4,
+        "type": "integer"
+    },
+    "clear_events": {
+        "description": 'Clear the _events.txt or KillStreaks.txt file at the end of process\n1 for enable or 0 for disable',
+        "default": 1,
+        "type": "integer"
+    },
+}
 
 def eprint(message, errorCode):
     """Prints out and error message and code then closes the program when the user hits enter
@@ -44,6 +147,28 @@ def dprint(message, color, value):
     """
     if ryukbot_settings['console_detail'] > value:
         cprint(message, color)
+
+def ryukbotInstaller():
+    os.system('cls')
+    cprint('Looks like this is your first time using ryukbot!', 'green')
+    print('Please take some time to follow this installers instructions\nBy the end of this it\'ll be ready to run right away')
+    print('At any point hit enter to pick the default example shown')
+    input('\nPress Enter to start the installer...')
+    os.system('cls')
+    newSettings = {}
+    for key in setting_descriptions:
+        cprint('Ryukbot Installer\n', 'cyan')
+        print(setting_descriptions[key]["description"])
+        print(f'\nDefault: {setting_descriptions[key]["default"]}\n')
+        answer = input(f'{key}: ')
+        if answer == '':
+            newSettings[key] = setting_descriptions[key]["default"]
+        elif setting_descriptions[key]["type"] == 'integer':
+            newSettings[key] = int(answer)
+        else:
+            newSettings[key] = answer
+        os.system('cls')
+    return newSettings
     
 def checkSetting(setting, type, ryukbot_settings):
     """Checks the settings file and makes sure its all valid
@@ -524,7 +649,7 @@ if Path('ryukbot_settings.json').is_file():
     try:
         ryukbot_settings = json.load(open('ryukbot_settings.json'))
     except:
-        eprint('Error loading ryukbot_settings.json', 195)
+        eprint('Error loading ryukbot_settings.json\nYou might\'ve failed the install process.\nPlease delete ryukbot_settings.json and restart it', 195)
     if ryukbot_settings['welcome_message'] == 1:
         cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
         cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
@@ -536,29 +661,7 @@ else:
     # If there is no settings file fill it with the default values
     #TODO: Add in the settings maker/ryukbot installer
     with open(Path('ryukbot_settings.json'), 'w') as ryukbot_settings:
-        json.dump({
-    "tf_folder": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\tf",
-    "commands": "",
-    "framerate": 60,
-    "crosshair": 0,
-    "HUD": 1,
-    "text_chat": 0,
-    "voice_chat": 0,
-    "method": "h264",
-    "start_delay": 500,
-    "before_bookmark": 1000,
-    "after_bookmark": 200,
-    "before_killstreak_per_kill": 500,
-    "after_killstreak": 300,
-    "minimum_ticks_between_clips": 500,
-    "interval_for_rewind_double_taps": 200,
-    "rewind_amount": 1000,
-    "record_continuous": 1,
-    "welcome_message": 1,
-    "console_detail": 3,
-    "clear_events": 1,
-    "mods": []
-}, ryukbot_settings, indent=4)
+        json.dump(ryukbotInstaller(), ryukbot_settings, indent=4)
     ryukbot_settings = json.load(open('ryukbot_settings.json'))
     cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
     cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
