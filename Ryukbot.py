@@ -149,6 +149,11 @@ def dprint(message, color, value):
         cprint(message, color)
 
 def ryukbotInstaller():
+    """This runs through the settings and lets the user input what they want for it in a user friendly way
+
+    Returns:
+        Object: The settings they input to it
+    """
     os.system('cls')
     cprint('Looks like this is your first time using ryukbot!', 'green')
     print('Please take some time to follow this installers instructions\nBy the end of this it\'ll be ready to run right away')
@@ -164,7 +169,10 @@ def ryukbotInstaller():
         if answer == '':
             newSettings[key] = setting_descriptions[key]["default"]
         elif setting_descriptions[key]["type"] == 'integer':
-            newSettings[key] = int(answer)
+            try:
+                newSettings[key] = int(answer)
+            except:
+                eprint('Should be a number with no letters', 202)
         else:
             newSettings[key] = answer
         os.system('cls')
