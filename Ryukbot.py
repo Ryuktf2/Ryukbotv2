@@ -18,7 +18,7 @@ colorama.init()
 # green:    Ran successfully
 # yellow:   Warning labels or important notices
 # blue:     
-# magenta:  
+# magenta:  Important but not an error or title
 # cyan:     Titles/System messages
 # white:    Normal paragraph messages/descriptions of things
 
@@ -36,22 +36,22 @@ setting_descriptions = {
     "crosshair": {
         "description": 'If you would like to enable or disable the crosshair\n1 for enable or 0 for disable',
         "default": 0,
-        "type": "integer"
+        "type": "boolean"
     },
     "HUD": {
         "description": 'If you would like to enable or disable the HUD\n1 for enable or 0 for disable',
         "default": 1,
-        "type": "integer"
+        "type": "boolean"
     },
     "text_chat": {
         "description": 'If you would like to enable or disable the text chat\n1 for enable or 0 for disable',
         "default": 0,
-        "type": "integer"
+        "type": "boolean"
     },
     "voice_chat": {
         "description": 'If you would like to enable or disable the voice chat\n1 for enable or 0 for disable',
         "default": 0,
-        "type": "integer"
+        "type": "boolean"
     },
     "commands": {
         "description": 'Any additional commands to run before a clips starts to record',
@@ -106,12 +106,12 @@ setting_descriptions = {
     "record_continuous": {
         "description": 'Automatically start recording the next demo when the current one is done\nIf disabled it will close tf2 when complete\n1 for enable or 0 for disable',
         "default": 1,
-        "type": "integer"
+        "type": "boolean"
     },
     "welcome_message": {
         "description": 'Enable or disable the welcome message at the start of the program\n1 for enable or 0 for disable',
         "default": 1,
-        "type": "integer"
+        "type": "boolean"
     },
     "console_detail": {
         "description": 'The amount of detail to show in the console as the program is running\n0 for none up to 4 to show everything',
@@ -121,7 +121,12 @@ setting_descriptions = {
     "clear_events": {
         "description": 'Clear the _events.txt or KillStreaks.txt file at the end of process\n1 for enable or 0 for disable',
         "default": 1,
-        "type": "integer"
+        "type": "boolean"
+    },
+    "advanced_event_maker": {
+        "description": 'Add an extra option to the built in _event.txt maker',
+        "default": 1,
+        "type": "boolean"
     },
 }
 
@@ -147,6 +152,60 @@ def dprint(message, color, value):
     """
     if ryukbot_settings['console_detail'] > value:
         cprint(message, color)
+        
+def yesNo():
+    """A simple prompt for a yes or no question that returns true or false
+
+    Returns:
+        boolean: Yes is True, No is False
+    """
+    print('y for Yes, n for No')
+    answer = input('Answer: ')
+    if answer.lower() == 'y' or answer.lower() == 'yes':
+        return True
+    elif answer.lower() == 'n' or answer.lower() == 'no':
+        return False
+    else:
+        cprint('Please only use y or n', 'red')
+        return yesNo()
+        
+def installerText(currentSetting, key):
+    """The user experience side of the installer
+
+    Args:
+        currentSetting (dictionary): The value of the current setting being editted/created
+        key (string): The name of the dictionary/the settings name in the json file
+
+    Returns:
+        string/int: returns the value input into the installer. Can be string or int based on the actual setting itself
+    """
+    cprint('Ryukbot Installer\n', 'cyan')
+    print(currentSetting["description"])
+    print(f'\nDefault: {currentSetting["default"]}\n')
+    answer = input(f'{key}: ')
+    if answer == '':
+        return currentSetting["default"]
+    elif currentSetting["type"] == 'integer' :
+        try:
+            return int(answer)
+        except:
+            os.system('cls')
+            cprint('Should be a number with no letters', 'red')
+            return installerText(currentSetting, key)
+    elif currentSetting["type"] == 'boolean' :
+        try:
+            if int(answer) == 1 or int(answer) == 0:
+                return int(answer)
+            else: 
+                os.system('cls')
+                cprint('Should be a 1 for yes or a 0 for no', 'red')
+                return installerText(currentSetting, key)
+        except:
+            os.system('cls')
+            cprint('Should be a number with no letters', 'red')
+            return installerText(currentSetting, key)
+    else:
+        return answer
 
 def ryukbotInstaller():
     """This runs through the settings and lets the user input what they want for it in a user friendly way
@@ -162,21 +221,17 @@ def ryukbotInstaller():
     os.system('cls')
     newSettings = {}
     for key in setting_descriptions:
-        cprint('Ryukbot Installer\n', 'cyan')
-        print(setting_descriptions[key]["description"])
-        print(f'\nDefault: {setting_descriptions[key]["default"]}\n')
-        answer = input(f'{key}: ')
-        if answer == '':
-            newSettings[key] = setting_descriptions[key]["default"]
-        elif setting_descriptions[key]["type"] == 'integer':
-            try:
-                newSettings[key] = int(answer)
-            except:
-                eprint('Should be a number with no letters', 202)
-        else:
-            newSettings[key] = answer
+        newSettings[key] = installerText(setting_descriptions[key], key)
         os.system('cls')
     return newSettings
+
+def _eventMaker():
+    cprint('_eventMaker()')
+    demoName = input('Demoname: ')
+    if demoName == '':
+        ryukbot()
+    else:
+        cprint("yay")
     
 def checkSetting(setting, type, ryukbot_settings):
     """Checks the settings file and makes sure its all valid
@@ -426,11 +481,9 @@ def tapCounter(event, nextEvent, tapCount):
     return tapCount
         
 # Read _events.txt or killstreaks.txt file 
-def ryukbot(ryukbot_settings):
-    """The base of the entire program
-
-    Args:
-        ryukbot_settings (json): The settings from the settings.json file
+def ryukbot():
+    """
+        The base of the entire program
     """
     try:
         tf_folder = ryukbot_settings["tf_folder"]
@@ -681,4 +734,4 @@ Discord: Ryuk#1825\n\n""", attrs=["bold"])
 
 settingRundown(ryukbot_settings)
         
-ryukbot(ryukbot_settings)
+ryukbot()
