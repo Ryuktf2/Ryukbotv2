@@ -7,7 +7,11 @@ import json
 import sys
 import os
 import colorama
-from termcolor import colored, cprint
+from termcolor import cprint
+from ryukbot_installer import *
+import ryukbot_settings
+from ryukbot_maker import _eventMaker
+from yesNo import yesNo
 
 # Activates the color in the console without this there would be no colors
 colorama.init()
@@ -22,113 +26,7 @@ colorama.init()
 # cyan:     Titles/System messages
 # white:    Normal paragraph messages/descriptions of things
 
-setting_descriptions = {
-    "tf_folder": {
-        "description": '/tf folder location',
-        "default": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Team Fortress 2\\tf",
-        "type": "string"
-    },
-    "framerate": {
-        "description": 'The framerate you would like to record at\n(Stick to standard framerates: 30, 60, 120, 240)',
-        "default": 60,
-        "type": "integer"
-    },
-    "crosshair": {
-        "description": 'If you would like to enable or disable the crosshair\n1 for enable or 0 for disable',
-        "default": 0,
-        "type": "boolean"
-    },
-    "HUD": {
-        "description": 'If you would like to enable or disable the HUD\n1 for enable or 0 for disable',
-        "default": 1,
-        "type": "boolean"
-    },
-    "text_chat": {
-        "description": 'If you would like to enable or disable the text chat\n1 for enable or 0 for disable',
-        "default": 0,
-        "type": "boolean"
-    },
-    "voice_chat": {
-        "description": 'If you would like to enable or disable the voice chat\n1 for enable or 0 for disable',
-        "default": 0,
-        "type": "boolean"
-    },
-    "commands": {
-        "description": 'Any additional commands to run before a clips starts to record',
-        "default": "",
-        "type": "string"
-    },
-    "method": {
-        "description": 'The method of recording that ryukbot will take to record\nh264 uses quicktime to directly get mp4\nLeaving it blank will use tga recording like Lawena by default',
-        "default": "h264",
-        "type": "string"
-    },
-    "start_delay": {
-        "description": 'The delay at the start of a demo before it starts skipping to the first clip\nCan be helpful to prevent crashes',
-        "default": 250,
-        "type": "integer"
-    },
-    "before_bookmark": {
-        "description": 'The ticks to record before each bookmark\n1500 ticks is about 10 seconds',
-        "default": 1000,
-        "type": "integer"
-    },
-    "after_bookmark": {
-        "description": 'The ticks to record after each bookmark\n1500 ticks is about 10 seconds',
-        "default": 200,
-        "type": "integer"
-    },
-    "before_killstreak_per_kill": {
-        "description": 'The ticks to record per kill in the killstreak\nThis should be equal or a little larger than the time allowed between kills in your game or prec settings\n1500 ticks is about 10 seconds',
-        "default": 500,
-        "type": "integer"
-    },
-    "after_killstreak": {
-        "description": 'The ticks to record after each killstreak\n1500 ticks is about 10 seconds',
-        "default": 300,
-        "type": "integer"
-    },
-    "minimum_ticks_between_clips": {
-        "description": 'The amount of ticks between the end of one clip and the start of the next before ryukbot just combines them\n1500 ticks is about 10 seconds',
-        "default": 500,
-        "type": "integer"
-    },
-    "interval_for_rewind_double_taps": {
-        "description": 'How long between each tap of the button is allowed for it to be counted a double tap\nKeep this number low to prevent accidental double (or more) taps\n1500 ticks is about 10 seconds',
-        "default": 200,
-        "type": "integer"
-    },
-    "rewind_amount": {
-        "description": 'The amount of ticks to rewind when a double tap happens\n1500 ticks is about 10 seconds',
-        "default": 1000,
-        "type": "integer"
-    },
-    "record_continuous": {
-        "description": 'Automatically start recording the next demo when the current one is done\nIf disabled it will close tf2 when complete\n1 for enable or 0 for disable',
-        "default": 1,
-        "type": "boolean"
-    },
-    "welcome_message": {
-        "description": 'Enable or disable the welcome message at the start of the program\n1 for enable or 0 for disable',
-        "default": 1,
-        "type": "boolean"
-    },
-    "console_detail": {
-        "description": 'The amount of detail to show in the console as the program is running\n0 for none up to 4 to show everything',
-        "default": 4,
-        "type": "integer"
-    },
-    "clear_events": {
-        "description": 'Clear the _events.txt or KillStreaks.txt file at the end of process\n1 for enable or 0 for disable',
-        "default": 1,
-        "type": "boolean"
-    },
-    "advanced_event_maker": {
-        "description": 'Add an extra option to the built in _event.txt maker',
-        "default": 1,
-        "type": "boolean"
-    },
-}
+setting_descriptions = ryukbot_settings.descriptions()
 
 def eprint(message, errorCode):
     """Prints out and error message and code then closes the program when the user hits enter
@@ -152,88 +50,9 @@ def dprint(message, color, value):
     """
     if ryukbot_settings['console_detail'] > value:
         cprint(message, color)
-        
-def yesNo():
-    """A simple prompt for a yes or no question that returns true or false
 
-    Returns:
-        boolean: Yes is True, No is False
-    """
-    print('y for Yes, n for No')
-    answer = input('Answer: ')
-    if answer.lower() == 'y' or answer.lower() == 'yes':
-        return True
-    elif answer.lower() == 'n' or answer.lower() == 'no':
-        return False
-    else:
-        cprint('Please only use y or n', 'red')
-        return yesNo()
-        
-def installerText(currentSetting, key):
-    """The user experience side of the installer
-
-    Args:
-        currentSetting (dictionary): The value of the current setting being editted/created
-        key (string): The name of the dictionary/the settings name in the json file
-
-    Returns:
-        string/int: returns the value input into the installer. Can be string or int based on the actual setting itself
-    """
-    cprint('Ryukbot Installer\n', 'cyan')
-    print(currentSetting["description"])
-    print(f'\nDefault: {currentSetting["default"]}\n')
-    answer = input(f'{key}: ')
-    if answer == '':
-        return currentSetting["default"]
-    elif currentSetting["type"] == 'integer' :
-        try:
-            return int(answer)
-        except:
-            os.system('cls')
-            cprint('Should be a number with no letters', 'red')
-            return installerText(currentSetting, key)
-    elif currentSetting["type"] == 'boolean' :
-        try:
-            if int(answer) == 1 or int(answer) == 0:
-                return int(answer)
-            else: 
-                os.system('cls')
-                cprint('Should be a 1 for yes or a 0 for no', 'red')
-                return installerText(currentSetting, key)
-        except:
-            os.system('cls')
-            cprint('Should be a number with no letters', 'red')
-            return installerText(currentSetting, key)
-    else:
-        return answer
-
-def ryukbotInstaller():
-    """This runs through the settings and lets the user input what they want for it in a user friendly way
-
-    Returns:
-        Object: The settings they input to it
-    """
-    os.system('cls')
-    cprint('Looks like this is your first time using ryukbot!', 'green')
-    print('Please take some time to follow this installers instructions\nBy the end of this it\'ll be ready to run right away')
-    print('At any point hit enter to pick the default example shown')
-    input('\nPress Enter to start the installer...')
-    os.system('cls')
-    newSettings = {}
-    for key in setting_descriptions:
-        newSettings[key] = installerText(setting_descriptions[key], key)
-        os.system('cls')
-    return newSettings
-
-def _eventMaker():
-    cprint('_eventMaker()')
-    demoName = input('Demoname: ')
-    if demoName == '':
-        ryukbot()
-    else:
-        cprint("yay")
     
-def checkSetting(setting, type, ryukbot_settings):
+def checkSetting(setting, type):
     """Checks the settings file and makes sure its all valid
 
     Args:
@@ -245,7 +64,7 @@ def checkSetting(setting, type, ryukbot_settings):
         Boolean: True if correct but simply exits out of the program with eprint if it is wrong
     """
     if setting in ryukbot_settings:
-        if type == 'digit' or type == 'boolean':
+        if type == 'integer' or type == 'boolean':
             if str(ryukbot_settings[setting]).isdigit():
                 if type == 'boolean':
                     if ryukbot_settings[setting] == 1 or ryukbot_settings[setting] == 0:
@@ -265,30 +84,12 @@ def checkSetting(setting, type, ryukbot_settings):
     else:
         eprint(f'{setting} is missing from ryukbot_settings.json', 201)
         
-def settingRundown(ryukbot_settings):
-    """Runs all of the settings in one place
-
-    Args:
-        ryukbot_settings (json):    The settings to check
+def settingRundown():
     """
-    checkSetting("commands", 'string', ryukbot_settings)
-    checkSetting("framerate", 'digit', ryukbot_settings)
-    checkSetting("crosshair", 'boolean', ryukbot_settings)
-    checkSetting("HUD", 'boolean', ryukbot_settings)
-    checkSetting("text_chat", 'boolean', ryukbot_settings)
-    checkSetting("voice_chat", 'boolean', ryukbot_settings)
-    checkSetting("method", 'string', ryukbot_settings)
-    checkSetting("start_delay", 'digit', ryukbot_settings)
-    checkSetting("before_bookmark", 'digit', ryukbot_settings)
-    checkSetting("after_bookmark", 'digit', ryukbot_settings)
-    checkSetting("before_killstreak_per_kill", 'digit', ryukbot_settings)
-    checkSetting("after_killstreak", 'digit', ryukbot_settings)
-    checkSetting("interval_for_rewind_double_taps", 'digit', ryukbot_settings)
-    checkSetting("rewind_amount", 'digit', ryukbot_settings)
-    checkSetting("record_continuous", 'boolean', ryukbot_settings)
-    checkSetting("welcome_message", 'boolean', ryukbot_settings)
-    checkSetting("console_detail", 'digit', ryukbot_settings)
-    checkSetting("clear_events", 'boolean', ryukbot_settings)
+        Runs all of the settings in one place
+    """
+    for key in setting_descriptions:
+        checkSetting(key, setting_descriptions[key]["type"])
         
 # Writes the start of a new command and adds one to the vdmCount variable
 def newCommand(vdmCount, VDM):
@@ -527,7 +328,20 @@ def ryukbot():
             try:
                 demoName = eventMarks[0][3]
             except IndexError:
-                eprint((f"{eventFileName} is empty"), 332)
+                cprint((f"{eventFileName} is empty"), 'red')
+                print(f'Would you like to run the {eventFileName} maker?')
+                if yesNo():
+                    if _eventMaker(eventFile, eventFileName, ryukbot_settings['advanced_event_maker']):
+                        os.system('cls')
+                        cprint('Run Ryukbot now?\n', 'cyan')
+                        if yesNo():
+                            ryukbot()
+                        else:
+                            input("Press enter to close...")
+                            os._exit(0)
+                else:
+                    input("Press enter to close...")
+                    os._exit(0)
             
             # Simple message letting the user know the programs progress.
             # More updates to the user are nice but I want to try and limit spam to the user.
@@ -642,6 +456,12 @@ def ryukbot():
                                 
                         startTick -= tapCount * ryukbot_settings['rewind_amount']
                         
+                        if startTick < ryukbot_settings["start_delay"]:
+                            startTick = ryukbot_settings["start_delay"]
+                            
+                        if endTick < ryukbot_settings["start_delay"]:
+                            endTick = ryukbot_settings["start_delay"] + 500
+                        
                         demoTicks.append({
                             "startTick": startTick,
                             "endTick": endTick,
@@ -722,7 +542,7 @@ else:
     # If there is no settings file fill it with the default values
     #TODO: Add in the settings maker/ryukbot installer
     with open(Path('ryukbot_settings.json'), 'w') as ryukbot_settings:
-        json.dump(ryukbotInstaller(), ryukbot_settings, indent=4)
+        json.dump(ryukbotInstaller(setting_descriptions), ryukbot_settings, indent=4)
     ryukbot_settings = json.load(open('ryukbot_settings.json'))
     cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
     cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
@@ -732,6 +552,6 @@ Patreon: https://www.patreon.com/ryuktf2
 Discord: Ryuk#1825\n\n""", attrs=["bold"])
     
 
-settingRundown(ryukbot_settings)
+settingRundown()
         
 ryukbot()
