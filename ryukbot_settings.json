@@ -17,7 +17,29 @@
     "rewind_amount": 1000,
     "record_continuous": 1,
     "welcome_message": 1,
-    "console_detail": 4,
+    "console_detail": 10,
     "clear_events": 1,
-    "advanced_event_maker": 1
+    "advanced_event_maker": 1,
+    "mods": [
+        {
+            "title": "Lol killstreak",
+            "description": "adds LOL to the end of clips with a killstreak of 69",
+            "code": "suffix 'LOL' on 'killstreak' value '69'"
+        },
+        {
+            "title": "funny bookmark",
+            "description": "adds funny to the start of bookmarks labeled funny",
+            "code": "prefix 'funny' on 'bookmark' value 'funny'"
+        },
+        {
+            "title": "thirdperson",
+            "description": "clips labeled thirdperson are filmed in thirdperson",
+            "code": "run 'thirdperson' on 'bookmark' value 'thirdperson'"
+        },
+        {
+            "title": "firstperson reset",
+            "description": "all normal clips are filmed in first person, works as a reset to the previous command",
+            "code": "run 'firstperson' on 'bookmark' value 'General'"
+        }
+    ]
 }

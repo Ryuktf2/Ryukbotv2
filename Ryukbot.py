@@ -12,6 +12,8 @@ from ryukbot_installer import *
 import ryukbot_settings
 from ryukbot_maker import _eventMaker
 from yesNo import yesNo
+from sprint import *
+from ryukbot_modding import checkMods, getModOptions
 
 # Activates the color in the console without this there would be no colors
 colorama.init()
@@ -27,31 +29,9 @@ colorama.init()
 # white:    Normal paragraph messages/descriptions of things
 
 setting_descriptions = ryukbot_settings.descriptions()
-
-def eprint(message, errorCode):
-    """Prints out and error message and code then closes the program when the user hits enter
-
-    Args:
-        message (string):   The error message the user sees
-        errorCode (int):    The error code used by the support team to pin down the issue
-    """ 
-    cprint(message, 'red')
-    cprint(f'Error Code: {errorCode}', 'red')
-    input('Press enter to close...')
-    os._exit(0)
+modOptions = getModOptions()
     
-def dprint(message, color, value):
-    """Prints a message to the console based on the console detail setting in ryukbot_settings.json
 
-    Args:
-        message (string):   The message to show
-        color (string):     The color of the message on the page
-        value (int):        The console detail level the setting must be above to show
-    """
-    if ryukbot_settings['console_detail'] > value:
-        cprint(message, color)
-
-    
 def checkSetting(setting, type):
     """Checks the settings file and makes sure its all valid
 
@@ -106,7 +86,7 @@ def newCommand(vdmCount, VDM):
     return vdmCount + 1
 
 # Prints the body of the vdm for each clip to be recorded
-def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
+def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_effects):
     """Prints the body of the vdm for each clip to be recorded
 
     Args:
@@ -142,11 +122,18 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount):
         
     # Creates the commands to later be written in the VDM file.
     try:
-        commands = ('%s; hud_saytext_time %s; voice_enable %s; crosshair %s; cl_drawhud %s; host_framerate %s;' 
-                    % (ryukbot_settings["commands"], chatTime,
-                    ryukbot_settings["voice_chat"], ryukbot_settings["crosshair"],
-                    ryukbot_settings["HUD"], ryukbot_settings["framerate"]))
+        preCommands = f'{mod_effects["modCommands"]}; {ryukbot_settings["commands"]}' if 'modCommands' in mod_effects else ryukbot_settings["commands"]
+        commands = ('hud_saytext_time %s; voice_enable %s; crosshair %s; cl_drawhud %s; host_framerate %s; %s;' 
+                    % (chatTime, ryukbot_settings["voice_chat"], ryukbot_settings["crosshair"],
+                    ryukbot_settings["HUD"], ryukbot_settings["framerate"], preCommands))
         
+        
+        if 'modPrefix' in mod_effects:
+            demoName = f'{mod_effects["modPrefix"]}_{demoName}'
+            
+        if 'modSuffix' in mod_effects:
+            suffix = f'{suffix}_{mod_effects["modSuffix"]}'
+            
         # Writes the bulk of the startmovie command
         VDM.write('factory "PlayCommands"\n\t\tname "record_start"\n\t\tstarttick "%s"\n\t\tcommands "%s startmovie %s_%s-%s_%s %s; clear"\n\t}\n'
                 % (startTick, commands, demoName, startTick, endTick, suffix, ryukbot_settings["method"]))
@@ -313,10 +300,6 @@ def ryukbot():
             # LINE: eventMarks[*]           --- EXAMPLE ('2020/04/27 20:23', 'Killstreak', '3', '2020-04-27_20-16-21', '29017')
             # DATE: eventMarks[*][0]        --- EXAMPLE 2020/04/27 20:23
             # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-            # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-            # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-            # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
-            # TYPE: eventMarks[*][1]        --- EXAMPLE Killstreak 
             # CRITERIA: eventMarks[*][2]    --- EXAMPLE 3
             # DEMO: eventMarks[*][3]        --- EXAMPLE 2020-04-27_20-16-21
             # TICK: eventMarks[*][4]        --- EXAMPLE 29017
@@ -391,7 +374,7 @@ def ryukbot():
                 else:
                     nextDemo = 'end'
                 
-                dprint(f'\nScanning demo: {demoName}', 'green', 2)
+                dprint(ryukbot_settings, f'\nScanning demo: {demoName}', 'green', 2)
                 
                 # The location of the file we want to make
                 backupDemoLocation = Path((str(dir_path) + '\\demos\\' + demoName + '.txt'))
@@ -413,9 +396,12 @@ def ryukbot():
                     VDM.write('demoactions\n{\n')
                     
                     while i < len(demoEvents):
+                        mod_effects = {}
                         
                         event = demoEvents[i]
                         killstreakCount = killstreakCounter(event, 0)
+
+                        mod_effects = checkMods(ryukbot_settings, event, mod_effects)
                         
                         if event[1].lower() == 'bookmark':
                             bookmark = True
@@ -437,6 +423,7 @@ def ryukbot():
                                     killstreakCount =  killstreakCounter(demoEvents[i+1], killstreakCount)
                                     # Sets a new end tick
                                     endTick = int(demoEvents[i+1][4]) + ticksAfter(demoEvents[i+1])
+                                    mod_effects = checkMods(ryukbot_settings, demoEvents[i+1], mod_effects)
                                     # Incriments i to show that line has been parsed already
                                     i += 1
                                 else:
@@ -465,16 +452,21 @@ def ryukbot():
                         demoTicks.append({
                             "startTick": startTick,
                             "endTick": endTick,
-                            "suffix": suffix
+                            "suffix": suffix,
+                            "mod_effects": mod_effects
                         })
                         
-                        dprint(f'Clip {clipCount}: {demoName}_{startTick}-{endTick}_{suffix}', 'cyan', 2)
+                        displayDemoName = f'{mod_effects["modPrefix"]}_{demoName}' if 'modPrefix' in mod_effects else demoName
+                        
+                        displaySuffix = f'{suffix}_{mod_effects["modSuffix"]}' if 'modSuffix' in mod_effects else suffix
+                            
+                        dprint(ryukbot_settings, f'Clip {clipCount}: {displayDemoName}_{startTick}-{endTick}_{displaySuffix}', 'cyan', 2)
                         i += 1
                     
                     vdmCount = 1
                     clip = 0
                     
-                    dprint(f'Writing file: {demoName}.vdm', 'green', 3)
+                    dprint(ryukbot_settings, f'Writing file: {demoName}.vdm', 'green', 3)
                     
                     while clip < len(demoTicks):
                         
@@ -482,6 +474,7 @@ def ryukbot():
                         clipStart = demoTicks[clip]["startTick"]
                         clipEnd = demoTicks[clip]["endTick"]
                         suffix = demoTicks[clip]["suffix"]
+                        demo_mods = demoTicks[clip]["mod_effects"]
                         
                         doubleCheck = True
                         while doubleCheck:
@@ -502,14 +495,14 @@ def ryukbot():
                             else:
                                 doubleCheck = False
                                 
-                        vdmCount = printVDM(VDM, demoName, clipStart, clipEnd, suffix, lastTick, vdmCount)
+                        vdmCount = printVDM(VDM, demoName, clipStart, clipEnd, suffix, lastTick, vdmCount, demo_mods)
                         lastTick = clipEnd + 100
                         clip += 1
                         
                     completeVDM(VDM, nextDemo, lastTick, vdmCount, demoName)
                     
-                    dprint(f'Done writing file: {demoName}.vdm', 'green', 0)
-                    dprint(f'Found {clipCount} clip(s)', 'green', 1)
+                    dprint(ryukbot_settings, f'Done writing file: {demoName}.vdm', 'green', 0)
+                    dprint(ryukbot_settings, f'Found {clipCount} clip(s)', 'green', 1)
                             
                     demoIndex += 1
 
@@ -522,7 +515,7 @@ def ryukbot():
             eprint(f'Error while clearing {eventFileName}', 398)
         input("Press enter to close...")
         os._exit(0)
-    except:
+    except IndexError:
         eprint('An Unexpected error occurred while running Ryukbot', 101)
                 
 if Path('ryukbot_settings.json').is_file():
