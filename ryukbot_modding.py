@@ -43,7 +43,7 @@ def checkMods(ryukbot_settings, event, mod_properties):
                 
                 if code.group(5) is None:
                     valid = True
-                elif event[2].lower() == code.group(5).lower() or code.group(5).lower() == '*':
+                elif (event[2].lower() == code.group(5).lower().replace("'", "")) or (code.group(5).lower().replace("'", "") == '*'):
                     valid = True
                 
                 if type and valid:
