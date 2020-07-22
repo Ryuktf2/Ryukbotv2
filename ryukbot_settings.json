@@ -22,49 +22,9 @@
     "advanced_event_maker": 1,
     "mods": [
         {
-            "title": "Scout Suffix",
+            "title": "Class Suffix",
             "description": "Specifies scout clips",
-            "code": "suffix 'Scout' on 'bookmark' value 'scout'"
-        },
-        {
-            "title": "Soldier Suffix",
-            "description": "Specifies soldier clips",
-            "code": "suffix 'Soldier' on 'bookmark' value 'soldier'"
-        },
-        {
-            "title": "Pyro Suffix",
-            "description": "Specifies pyro clips",
-            "code": "suffix 'Pyro' on 'bookmark' value 'pyro'"
-        },
-        {
-            "title": "Demo Suffix",
-            "description": "Specifies demo clips",
-            "code": "suffix 'Demo' on 'bookmark' value 'demo'"
-        },
-        {
-            "title": "Heavy Suffix",
-            "description": "Specifies heavy clips",
-            "code": "suffix 'Heavy' on 'bookmark' value 'heavy'"
-        },
-        {
-            "title": "Engie Suffix",
-            "description": "Specifies engie clips",
-            "code": "suffix 'Engie' on 'bookmark' value 'engie'"
-        },
-        {
-            "title": "Medic Suffix",
-            "description": "Specifies medic clips",
-            "code": "suffix 'Medic' on 'bookmark' value 'medic'"
-        },
-        {
-            "title": "Sniper Suffix",
-            "description": "Specifies sniper clips",
-            "code": "suffix 'Sniper' on 'bookmark' value 'sniper'"
-        },
-        {
-            "title": "Spy Suffix",
-            "description": "Specifies spy clips",
-            "code": "suffix 'Spy' on 'bookmark' value 'spy'"
+            "code": "suffix '[value]' on 'bookmark' unless 'General'"
         }
     ]
 }
