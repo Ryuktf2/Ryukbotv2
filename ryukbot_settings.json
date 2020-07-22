@@ -24,12 +24,12 @@
         {
             "title": "Lol killstreak",
             "description": "adds LOL to the end of clips with a killstreak of 69",
-            "code": "suffix 'LOL' on 'killstreak' value '69'"
+            "code": "suffix 'LOL' on '*'"
         },
         {
             "title": "funny bookmark",
             "description": "adds funny to the start of bookmarks labeled funny",
-            "code": "prefix 'funny' on 'bookmark' value 'funny'"
+            "code": "prefix 'funny' on 'bookmark' value '*'"
         },
         {
             "title": "thirdperson",
