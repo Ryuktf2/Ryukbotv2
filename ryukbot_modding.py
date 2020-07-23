@@ -7,14 +7,19 @@ colorama.init()
 modOptions = {
     "prefix": "modPrefix",
     "suffix": "modSuffix",
-    "run": "modCommands"
+    "run": "modCommands",
+    "framerate": "modFramerate",
+    "crosshair": "modCrosshair",
+    "hud": "modHud",
+    "text_chat": "modText_chat",
+    "voice_chat": "modVoice_chat"
 }
 
 def getModOptions():
     return modOptions
 
 def checkMods(ryukbot_settings, event, mod_properties):
-    rbcParse = re.compile(r"(run|prefix|suffix) \'(.*)\' on \'(killstreak|bookmark|\*)\'( value | unless )?(\'(.*)\')?", re.IGNORECASE)
+    rbcParse = re.compile(r"(.*) \'(.*)\' on \'(killstreak|bookmark|\*)\'( value | unless )?(\'(.*)\')?", re.IGNORECASE)
     if "mods" in ryukbot_settings:
         for mod in ryukbot_settings["mods"]:
             try: 
@@ -35,7 +40,7 @@ def checkMods(ryukbot_settings, event, mod_properties):
             valid = False
                 
             # If any code was found at all
-            if code.group():
+            if code.group(1).lower() in modOptions if code.group() else False:
                 
                 # Check if the type matches the type of the clip
                 if (code.group(3).lower() == 'bookmark' and event[1].lower() == 'bookmark'):
@@ -53,7 +58,7 @@ def checkMods(ryukbot_settings, event, mod_properties):
                     else:
                         # checks if it should run when it matches or when it doesnt match
                         if code.group(4) == ' value ':
-                            if (event[2].lower() == code.group(5).lower().replace("'", "")) or (code.group(5).lower().replace("'", "") == '*'):
+                            if (event[2].lower() == code.group(5).lower().replace("'", "")) or (code.group(5).lower().replace("'", "") == '*') or (event[2].lower().split(':')[1] == code.group(5).lower().replace("'", "")):
                                 valid = True
                         elif code.group(4) == ' unless ':
                             if not event[2].lower() == code.group(5).lower().replace("'", ""):
@@ -61,14 +66,12 @@ def checkMods(ryukbot_settings, event, mod_properties):
                     
                     # run if fully valid on all ends
                     if valid:
-                        for key in modOptions.keys():
-                            if code.group(1).lower() == key.lower():
-                                if code.group(2).lower() == '[type]':
-                                    mod_properties[modOptions[key]] = event[1]
-                                elif code.group(2).lower() == '[value]':
-                                    mod_properties[modOptions[key]] = event[2]
-                                else:
-                                    mod_properties[modOptions[key]] = code.group(2)
+                        if code.group(2).lower() == '[type]':
+                            mod_properties[modOptions[code.group(1).lower()]] = event[1]
+                        elif code.group(2).lower() == '[value]':
+                            mod_properties[modOptions[code.group(1).lower()]] = event[2]
+                        else:
+                            mod_properties[modOptions[code.group(1).lower()]] = code.group(2)
                     
                         
     return mod_properties

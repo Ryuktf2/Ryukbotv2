@@ -23,8 +23,13 @@
     "mods": [
         {
             "title": "Class Suffix",
-            "description": "Specifies scout clips",
+            "description": "Specifies class of the clips",
             "code": "suffix '[value]' on 'bookmark' unless 'General'"
+        },
+        {
+            "title": "Better killstreak better video",
+            "description": "The fps of the clip is locked to the amount of kills in the killstreak",
+            "code": "framerate '[value]' on 'killstreak'"
         }
     ]
 }

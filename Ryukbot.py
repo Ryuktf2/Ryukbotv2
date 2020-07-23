@@ -104,6 +104,14 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_
                 vdm printing process.
     """
     
+    
+    framerate = mod_effects["modFramerate"] if "modFramerate" in mod_effects else ryukbot_settings["framerate"]
+    crosshair = mod_effects["modCrosshair"] if "modCrosshair" in mod_effects else ryukbot_settings["crosshair"]
+    hud = mod_effects["modHud"] if "modHud" in mod_effects else ryukbot_settings["HUD"]
+    text_chat = mod_effects["modText_chat"] if "modText_chat" in mod_effects else ryukbot_settings["text_chat"]
+    voice_chat = mod_effects["modVoice_chat"] if "modVoice_chat" in mod_effects else ryukbot_settings["voice_chat"]
+    
+    
     # Starts the new command line
     try:
         vdmCount = newCommand(vdmCount, VDM)
@@ -115,17 +123,15 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_
         eprint(f'Error printing to {demoName}.vdm', 372)
     
     # sets the chatTime based on the settings
-    if ryukbot_settings["text_chat"] == 0:
+    if text_chat == 0:
         chatTime = 0
     else:
         chatTime = 12
         
     # Creates the commands to later be written in the VDM file.
     try:
-        preCommands = f'{mod_effects["modCommands"]}; {ryukbot_settings["commands"]}' if 'modCommands' in mod_effects else ryukbot_settings["commands"]
-        commands = ('hud_saytext_time %s; voice_enable %s; crosshair %s; cl_drawhud %s; host_framerate %s; %s;' 
-                    % (chatTime, ryukbot_settings["voice_chat"], ryukbot_settings["crosshair"],
-                    ryukbot_settings["HUD"], ryukbot_settings["framerate"], preCommands))
+        preCommands = f'{mod_effects["modCommands"]}; {ryukbot_settings["commands"]};' if 'modCommands' in mod_effects else ryukbot_settings["commands"]
+        commands = f'hud_saytext_time {chatTime}; voice_enable {voice_chat}; crosshair {crosshair}; cl_drawhud {framerate}; host_framerate {framerate}; {preCommands};'
         
         
         if 'modPrefix' in mod_effects:
