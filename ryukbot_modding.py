@@ -58,7 +58,7 @@ def checkMods(ryukbot_settings, event, mod_properties):
                     else:
                         # checks if it should run when it matches or when it doesnt match
                         if code.group(4) == ' value ':
-                            if (event[2].lower() == code.group(5).lower().replace("'", "")) or (code.group(5).lower().replace("'", "") == '*') or (event[2].lower().split(':')[1] == code.group(5).lower().replace("'", "")):
+                            if (event[2].lower() == code.group(5).lower().replace("'", "")) or (code.group(5).lower().replace("'", "") == '*'):
                                 valid = True
                         elif code.group(4) == ' unless ':
                             if not event[2].lower() == code.group(5).lower().replace("'", ""):
