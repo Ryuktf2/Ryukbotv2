@@ -296,7 +296,7 @@ def ryukbot():
             eventLines = _events.readlines()
             
             # REGEX for future use
-            lineRegex = re.compile('\[(.*)\] (kill|killstreak|bookmark) (.*) \("(.*)" at (\d*)\)', re.IGNORECASE)
+            lineRegex = re.compile('\[(.*)\] (kill|killstreak|bookmark|player) (.*) \("(.*)" at (\d*)\)', re.IGNORECASE)
             carrotRegex = re.compile('\n(\>)?\n')
             
             # Combines it into one string and searches it
@@ -513,12 +513,13 @@ def ryukbot():
                     demoIndex += 1
 
         cprint(f'\nScanning {eventFileName} is complete', 'green')
-        cprint(f'Clearing {eventFileName}', 'yellow')
-        try:
-            open(eventFile, 'w+').close()
-            cprint(f'{eventFileName} cleared')
-        except:
-            eprint(f'Error while clearing {eventFileName}', 398)
+        if ryukbot_settings["clear_events"] == 1:
+            cprint(f'Clearing {eventFileName}', 'yellow')
+            try:
+                open(eventFile, 'w+').close()
+                cprint(f'{eventFileName} cleared')
+            except:
+                eprint(f'Error while clearing {eventFileName}', 398)
         input("Press enter to close...")
         os._exit(0)
     except IndexError:
