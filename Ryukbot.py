@@ -7,7 +7,7 @@ import json
 import sys
 import os
 import colorama
-import random
+from random import randint
 from termcolor import cprint
 from ryukbot_installer import *
 import ryukbot_settings
@@ -478,7 +478,7 @@ def ryukbot():
                             dprint(ryukbot_settings, f'Clip {clipCount}: {displayDemoName}_{startTick}-{endTick}_{displaySuffix}', 'cyan', 2)
                             
                             # IGNORE THIS
-                            if ((rand := random.randint(1, 100)) <= 5):
+                            if ((rand := randint(1, 100)) <= 5):
                                 dprint(ryukbot_settings, f'Oh god this one is BAD', 'magenta', 68)
                             elif (5 < rand <= 10):
                                 dprint(ryukbot_settings, f'Don\'t even record this one', 'magenta', 68)
