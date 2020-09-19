@@ -20,8 +20,7 @@ def installerText(currentSetting, key):
     cprint('Ryukbot Installer\n', 'cyan')
     print(currentSetting["description"])
     print(f'\nDefault: {currentSetting["default"]}\n')
-    answer = input(f'{key}: ')
-    if answer == '':
+    if (answer := input(f'{key}: ')) == '':
         return currentSetting["default"]
     elif currentSetting["type"] == 'integer' :
         try:

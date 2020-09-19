@@ -105,4 +105,9 @@ def descriptions():
         "default": 1,
         "type": "boolean"
     },
+    "safe_mode": {
+        "description": 'Enabling will prevent you from being able to overwrite previously made VDM files.',
+        "default": 0,
+        "type": "boolean"
+    },
 }

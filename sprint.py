@@ -5,13 +5,14 @@ from termcolor import cprint
 # Activates the color in the console without this there would be no colors
 colorama.init()
 
-def eprint(message, errorCode):
+def eprint(ryukbot_settings, message, errorCode):
     """Prints out and error message and code then closes the program when the user hits enter
 
     Args:
         message (string):   The error message the user sees
         errorCode (int):    The error code used by the support team to pin down the issue
     """ 
+    dprint(ryukbot_settings, f'I don\'t even know how you managed it but', 'magenta', 68)
     cprint(message, 'red')
     cprint(f'Error Code: {errorCode}', 'red')
     input('Press enter to close...')
@@ -25,5 +26,9 @@ def dprint(ryukbot_settings, message, color, value):
         color (string):     The color of the message on the page
         value (int):        The console detail level the setting must be above to show
     """
+    if ryukbot_settings['console_detail'] > 69:
+        ryukbot_settings['console_detail'] = 68
+        
+        
     if ryukbot_settings['console_detail'] > value:
         cprint(message, color)

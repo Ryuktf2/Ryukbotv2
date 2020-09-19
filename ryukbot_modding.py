@@ -43,11 +43,11 @@ def checkMods(ryukbot_settings, event, mod_properties):
             if code.group(1).lower() in modOptions if code.group() else False:
                 
                 # Check if the type matches the type of the clip
-                if (code.group(3).lower() == 'bookmark' and event[1].lower() == 'bookmark'):
+                if ((codeLower := code.group(3).lower()) == 'bookmark' and (eventLower := event[1].lower()) == 'bookmark'):
                     type = True
-                elif (code.group(3).lower() == 'killstreak' and (event[1].lower() == 'killstreak' or event[1].lower() == 'kill')):
+                elif (codeLower == 'killstreak' and (eventLower == 'killstreak' or eventLower == 'kill')):
                     type = True
-                elif (code.group(3).lower() == '*'):
+                elif (codeLower == '*'):
                     type = True
                 
                 # Only run if the types match
