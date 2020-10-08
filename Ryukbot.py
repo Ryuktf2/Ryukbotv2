@@ -19,6 +19,8 @@ from ryukbot_modding import checkMods, getModOptions
 # Activates the color in the console without this there would be no colors
 colorama.init()
 
+ryukbot_version = 'v2.0.7'
+
 # Color Coding ruleset:
 # grey: 
 # red:      Errors and the messages associated
@@ -41,7 +43,7 @@ def checkSetting(setting, setting_descriptions):
         setting_descriptions (object):  The settings information
 
     Returns:
-        Boolean: True if correct but simply exits out of the program with eprint if it is wrong
+        Boolean: returns the value of the setting
     """
     
     if setting in ryukbot_settings:
@@ -50,28 +52,39 @@ def checkSetting(setting, setting_descriptions):
                 if type == 'boolean':
                     if ryukbot_settings[setting] == 1 or ryukbot_settings[setting] == 0:
                         ryukbot_settings[setting] = True if ryukbot_settings[setting] == 1 else False
-                        return True
+                        return ryukbot_settings[setting]
                     else:
                         eprint(ryukbot_settings, f'{setting} is incorrectly set up (should be a 1 or 0)', 204)
                 else: 
-                    return True
+                    return ryukbot_settings[setting]
                     
             else:
                 eprint(ryukbot_settings, f'{setting} is incorrectly set up (should be a number)', 205)
         else: 
             if isinstance(ryukbot_settings[setting], str):
-                return True
+                return ryukbot_settings[setting]
             else:
                 eprint(ryukbot_settings, f'{setting} is incorrectly set up (should be wrapped in quotes)', 203)
     else:
-        eprint(ryukbot_settings, f'{setting} is missing from ryukbot_settings.json\nDefault value is {setting_descriptions["default"]}', 201)
+        cprint(f'{setting} is missing from ryukbot_settings.json', 'red')
+        # eprint(ryukbot_settings, f'{setting} is missing from ryukbot_settings.json\nDefault value is: {setting_descriptions["default"]}', 201)
+        return missingSettingText(setting_descriptions, setting)
         
 def settingRundown():
     """
         Runs all of the settings in one place
     """
+    changed = False
     for key in setting_descriptions:
-        checkSetting(key, setting_descriptions[key])
+        ryukbot_settings[key] = checkSetting(key, setting_descriptions[key])
+        
+    printSettings = ryukbot_settings
+    for key in ryukbot_settings:
+        if ryukbot_settings[key] == True or ryukbot_settings[key] == False:
+            printSettings[key] = 1 if ryukbot_settings[key] else 0
+        
+    with open(Path('ryukbot_settings.json'), 'w+') as f:
+        json.dump(ryukbot_settings, f, indent=4)
         
 # Writes the start of a new command and adds one to the vdmCount variable
 def newCommand(vdmCount, VDM):
@@ -112,6 +125,7 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_
     hud = mod_effects["modHud"] if "modHud" in mod_effects else ryukbot_settings["HUD"]
     text_chat = mod_effects["modText_chat"] if "modText_chat" in mod_effects else ryukbot_settings["text_chat"]
     voice_chat = mod_effects["modVoice_chat"] if "modVoice_chat" in mod_effects else ryukbot_settings["voice_chat"]
+    endCommands = mod_effects["modEndCommands"] if "modEndCommands" in mod_effects else ryukbot_settings["end_commands"]
     
     
     # Starts the new command line
@@ -125,15 +139,15 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_
         eprint(ryukbot_settings, f'Error printing to {demoName}.vdm', 372)
     
     # sets the chatTime based on the settings
-    if text_chat == 0:
+    if text_chat:
         chatTime = 0
     else:
         chatTime = 12
         
     # Creates the commands to later be written in the VDM file.
     try:
-        preCommands = f'{mod_effects["modCommands"]}; {ryukbot_settings["commands"]};' if 'modCommands' in mod_effects else ryukbot_settings["commands"]
-        commands = f'hud_saytext_time {chatTime}; voice_enable {voice_chat}; crosshair {crosshair}; cl_drawhud {framerate}; host_framerate {framerate}; {preCommands};'
+        preCommands = f' {mod_effects["modCommands"]}; {ryukbot_settings["commands"]}; ' if 'modCommands' in mod_effects else f' {ryukbot_settings["commands"]}; '
+        commands = f'hud_saytext_time {chatTime}; voice_enable {1 if voice_chat else 0}; crosshair {1 if crosshair else 0}; cl_drawhud {1 if hud else 0}; host_framerate {framerate};{preCommands}'
         
         
         if 'modPrefix' in mod_effects:
@@ -141,6 +155,10 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_
             
         if 'modSuffix' in mod_effects:
             suffix = f'{suffix}_{mod_effects["modSuffix"]}'
+            
+        if 'modSpectate' in mod_effects:
+            commands = f'{commands} spec_player {mod_effects["modSpectate"]}; spec_mode;'
+            endCommands = f'{endCommands}; spec_mode; spec_mode'
             
         # Writes the bulk of the startmovie command
         VDM.write('factory "PlayCommands"\n\t\tname "record_start"\n\t\tstarttick "%s"\n\t\tcommands "%s startmovie %s_%s-%s_%s %s; clear"\n\t}\n'
@@ -150,8 +168,8 @@ def printVDM(VDM, demoName, startTick, endTick, suffix, lastTick, vdmCount, mod_
     
     try:
         vdmCount = newCommand(vdmCount, VDM)
-        VDM.write('factory "PlayCommands"\n\t\tname "record_stop"\n\t\tstarttick "%s"\n\t\tcommands "endmovie;host_framerate 0"\n\t}\n'
-                % (endTick))
+        VDM.write('factory "PlayCommands"\n\t\tname "record_stop"\n\t\tstarttick "%s"\n\t\tcommands "%s; endmovie; host_framerate 0"\n\t}\n'
+                % (endTick, endCommands))
     except: 
         eprint(ryukbot_settings, f'Error printing to {demoName}.vdm', 374)
     
@@ -682,19 +700,17 @@ ooooooooooooooooooooooooo""", 'cyan')
         
     if ryukbot_settings['welcome_message']:
         cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
-        cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
+        cprint(f"""RYUKBOT {ryukbot_version} HAS BEEN LOADED\n
 Developed by Ryuk
 Steam: https://steamcommunity.com/id/Ryuktf2/
 Patreon: https://www.patreon.com/ryuktf2
 Discord: Ryuk#1825\n\n""", attrs=["bold"])
 else: 
-    # If there is no settings file fill it with the default values
-    #TODO: Add in the settings maker/ryukbot installer
     with open(Path('ryukbot_settings.json'), 'w') as ryukbot_settings:
         json.dump(ryukbotInstaller(setting_descriptions), ryukbot_settings, indent=4)
     ryukbot_settings = json.load(open('ryukbot_settings.json'))
     cprint("ATTENTION LEGITIMATE GAMERS", attrs=["bold", "underline"])
-    cprint("""RYUKBOT v2.0.0 HAS BEEN LOADED\n
+    cprint(f"""RYUKBOT {ryukbot_version} HAS BEEN LOADED\n
 Developed by Ryuk
 Steam: https://steamcommunity.com/id/Ryuktf2/
 Patreon: https://www.patreon.com/ryuktf2

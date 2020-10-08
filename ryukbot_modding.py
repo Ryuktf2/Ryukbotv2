@@ -9,10 +9,16 @@ modOptions = {
     "suffix": "modSuffix",
     "run": "modCommands",
     "framerate": "modFramerate",
+    "fps": "modFramerate",
     "crosshair": "modCrosshair",
     "hud": "modHud",
     "text_chat": "modText_chat",
-    "voice_chat": "modVoice_chat"
+    "textchat": "modText_chat",
+    "voice_chat": "modVoice_chat",
+    "voicechat": "modVoice_chat",
+    "spectate": "modSpectate",
+    "end_commands": "modEndCommands",
+    "endcommands": "modEndCommands"
 }
 
 def getModOptions():

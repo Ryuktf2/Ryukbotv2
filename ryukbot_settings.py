@@ -35,6 +35,11 @@ def descriptions():
         "default": "",
         "type": "string"
     },
+    "end_commands": {
+        "description": 'Commands to run once recording is completed. Often used to reset values to the default prefered for play values',
+        "default": "",
+        "type": "string"
+    },
     "method": {
         "description": 'The method of recording that ryukbot will take to record\nh264 uses quicktime to directly get mp4\nLeaving it blank will use tga recording like Lawena by default',
         "default": "h264",

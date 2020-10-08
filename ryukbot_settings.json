@@ -6,6 +6,7 @@
     "text_chat": 0,
     "voice_chat": 0,
     "commands": "",
+    "end_commands": "",
     "method": "h264",
     "start_delay": 250,
     "before_bookmark": 1000,
@@ -17,15 +18,8 @@
     "rewind_amount": 1000,
     "record_continuous": 1,
     "welcome_message": 1,
-    "console_detail": 69,
+    "console_detail": 4,
     "clear_events": 1,
     "advanced_event_maker": 1,
-    "safe_mode": 0,
-    "mods": [
-        {
-            "title": "Class Suffix",
-            "description": "Specifies class of the clips",
-            "code": "suffix '[value]' on 'bookmark' unless 'General'"
-        }
-    ]
+    "safe_mode": 0
 }
